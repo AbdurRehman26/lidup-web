@@ -1,8 +1,8 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import SiteLayout from '../Layouts/SiteLayout';
 
-export default function Register() {
-    const form = useForm({ name: '', email: '', password: '', password_confirmation: '' });
+export default function Register({ plans, selectedPlan }) {
+    const form = useForm({ name: '', email: '', password: '', password_confirmation: '', plan: selectedPlan });
 
     const submit = (event) => {
         event.preventDefault();
@@ -20,6 +20,13 @@ export default function Register() {
                 <div className="auth-copy"><p className="eyebrow">Private beta</p><h1>Close the lid.<br /><em>Come back to done.</em></h1><p>Create your account and start a 14-day early-access trial. No credit card required.</p></div>
                 <form onSubmit={submit} className="auth-card">
                     <h2>Create your account</h2>
+                    <div className="plan-picker" aria-label="Choose a plan">
+                        {Object.entries(plans).map(([key, plan]) => (
+                            <button className={form.data.plan === key ? 'selected' : ''} type="button" key={key} onClick={() => form.setData('plan', key)}>
+                                <span>{plan.name}</span><b>${plan.price}<small>/mo</small></b>
+                            </button>
+                        ))}
+                    </div>
                     <Field label="Name" type="text" value={form.data.name} onChange={(value) => form.setData('name', value)} autoComplete="name" autoFocus />
                     <Field label="Email" type="email" value={form.data.email} onChange={(value) => form.setData('email', value)} autoComplete="email" />
                     <Field label="Password" type="password" value={form.data.password} onChange={(value) => form.setData('password', value)} autoComplete="new-password" />

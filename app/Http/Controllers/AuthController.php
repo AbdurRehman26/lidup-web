@@ -3,39 +3,46 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\SubscriptionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class AuthController extends Controller
 {
-    public function showRegister(): Response
+    public function showRegister(Request $request): Response
     {
-        return Inertia::render('Register');
+        $selectedPlan = array_key_exists($request->string('plan')->toString(), config('plans'))
+            ? $request->string('plan')->toString()
+            : 'personal';
+
+        return Inertia::render('Register', [
+            'plans' => config('plans'),
+            'selectedPlan' => $selectedPlan,
+        ]);
     }
 
-    public function register(Request $request): RedirectResponse
+    public function register(Request $request, SubscriptionService $subscriptions): RedirectResponse
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:80'],
             'email' => ['required', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'confirmed', Password::min(8)],
+            'plan' => ['required', Rule::in(array_keys(config('plans')))],
         ]);
 
         $user = User::create([
-            ...$validated,
+            'name' => $validated['name'],
+            'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
         ]);
 
-        $user->subscription()->create([
-            'plan' => 'early-access',
-            'status' => 'trialing',
-            'trial_ends_at' => now()->addDays(14),
-        ]);
+        $subscriptions->startTrial($user, $validated['plan']);
 
         Auth::login($user);
         $request->session()->regenerate();

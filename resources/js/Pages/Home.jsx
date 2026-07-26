@@ -20,7 +20,7 @@ export default function Home() {
                     <h1>Close your Mac.<br /><span>Keep work running.</span></h1>
                     <p className="hero-lede">LidUp keeps builds, coding agents, and long-running tasks moving—even when the lid is closed.</p>
                     <div className="hero-actions">
-                        <Link className="button" href="/register"><span className="apple-mark">●</span> Get LidUp for Mac</Link>
+                        <Link className="button" href="/download"><span className="apple-mark">●</span> Download for Mac</Link>
                         <a className="secondary-button" href="#how-it-works">See how it works</a>
                     </div>
                     <p className="microcopy">Requires macOS 14 or later · 14 days free</p>
@@ -78,12 +78,9 @@ export default function Home() {
 
             <section id="pricing" className="pricing-section">
                 <div className="price-copy"><p className="kicker">Simple pricing</p><h2>One small app.<br />One simple plan.</h2><p>Everything you need to keep your Mac working while you move.</p></div>
-                <div className="price-card">
-                    <div className="price-card-head"><img src="/app-icon.png" alt="" /><div><b>LidUp</b><span>for macOS</span></div></div>
-                    <div className="price"><strong>$4</strong><span>per month</span></div>
-                    <ul><li>Unlimited protected sessions</li><li>Automatic process rules</li><li>Battery safety controls</li><li>All future updates</li></ul>
-                    <Link className="button button-wide" href="/register">Start 14-day free trial</Link>
-                    <small>No card required. Cancel anytime.</small>
+                <div className="pricing-cards">
+                    <PlanCard name="Personal" price="4" devices="1 Mac" href="/register?plan=personal" />
+                    <PlanCard name="Pro" price="8" devices="Up to 3 Macs" href="/register?plan=pro" featured />
                 </div>
             </section>
 
@@ -106,4 +103,17 @@ function Feature({ icon, title, children }) {
 
 function Setting({ title, enabled }) {
     return <div className="setting-row"><span>{title}</span><i className={enabled ? 'toggle-on' : ''}><b /></i></div>;
+}
+
+function PlanCard({ name, price, devices, href, featured = false }) {
+    return (
+        <div className={`price-card${featured ? ' featured' : ''}`}>
+            {featured && <span className="best-plan">Most popular</span>}
+            <div className="price-card-head"><img src="/app-icon.png" alt="" /><div><b>{name}</b><span>{devices}</span></div></div>
+            <div className="price"><strong>${price}</strong><span>per month</span></div>
+            <ul><li>Unlimited protected sessions</li><li>Automatic process rules</li><li>Battery safety controls</li><li>All future updates</li></ul>
+            <Link className="button button-wide" href={href}>Start 14-day free trial</Link>
+            <small>No card required. Cancel anytime.</small>
+        </div>
+    );
 }

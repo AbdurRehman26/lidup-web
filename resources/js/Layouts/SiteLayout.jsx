@@ -12,6 +12,7 @@ export default function SiteLayout({ children }) {
             <header className="site-header">
                 <Link href="/" aria-label="LidUp home"><Brand /></Link>
                 <nav aria-label="Main navigation">
+                    <Link href="/download">Download</Link>
                     <Link href="/#how-it-works">How it works</Link>
                     <Link href="/#pricing">Pricing</Link>
                     {auth.user ? (

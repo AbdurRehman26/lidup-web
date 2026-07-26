@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Subscription extends Model
 {
@@ -24,5 +25,16 @@ class Subscription extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function events(): HasMany
+    {
+        return $this->hasMany(SubscriptionEvent::class);
+    }
+
+    public function isEntitled(): bool
+    {
+        return in_array($this->status, ['trialing', 'active'], true)
+            && ($this->ends_at === null || $this->ends_at->isFuture());
     }
 }

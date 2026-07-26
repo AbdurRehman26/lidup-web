@@ -18,6 +18,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'flash' => [
                 'subscribed' => fn () => $request->session()->get('subscribed'),
+                'subscription_updated' => fn () => $request->session()->get('subscription_updated'),
             ],
         ];
     }

@@ -1,4 +1,4 @@
-import { Head, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import SiteLayout from '../Layouts/SiteLayout';
 
 export default function Dashboard({ subscription, updates }) {
@@ -6,7 +6,7 @@ export default function Dashboard({ subscription, updates }) {
     const user = auth.user;
     const firstName = user.name.split(' ')[0];
     const status = subscription?.status ?? 'inactive';
-    const plan = subscription?.plan === 'early-access' ? 'Early access' : titleCase(subscription?.plan ?? 'No plan');
+    const plan = titleCase(subscription?.plan ?? 'No plan');
 
     return (
         <SiteLayout>
@@ -18,8 +18,9 @@ export default function Dashboard({ subscription, updates }) {
                         <div><span className="status-dot" /><span className="mono">{status.toUpperCase()}</span></div>
                         <h2>{plan}</h2>
                         <p>{subscription?.trial_ends_at ? `Trial ends ${formatDate(subscription.trial_ends_at)}` : 'Your subscription details will appear here.'}</p>
-                        <button className="button" type="button" disabled>Download for macOS <span>↓</span></button>
-                        <small>Build coming soon · macOS 14+</small>
+                        <Link className="button" href="/download">Download for macOS <span>↓</span></Link>
+                        <Link className="manage-plan-link" href="/subscription">Manage subscription</Link>
+                        <small>Universal build · macOS 14+</small>
                     </article>
                     <article className="account-card">
                         <p className="eyebrow">Account</p>
