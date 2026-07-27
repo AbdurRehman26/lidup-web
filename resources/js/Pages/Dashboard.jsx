@@ -1,51 +1,197 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { useState } from 'react';
 import SiteLayout from '../Layouts/SiteLayout';
 
-export default function Dashboard({ subscription, updates }) {
-    const { auth } = usePage().props;
+const tiers = [
+    {
+        key: 'free',
+        name: 'Free',
+        price: 0,
+        suffix: 'forever',
+        features: ['Free app download', 'Product updates', 'No account needed to download'],
+        note: 'Included for everyone.',
+    },
+    {
+        key: 'personal',
+        name: 'Personal',
+        features: ['1 activation key', 'Use LidUp on 1 Mac', 'All app features', 'Email support'],
+        note: 'For your everyday Mac.',
+    },
+    {
+        key: 'pro',
+        name: 'Pro',
+        badge: 'Best value',
+        features: ['1 activation key', 'Use LidUp on 3 Macs', 'All app features', 'Priority support'],
+        note: 'For a multi-Mac setup.',
+    },
+];
+
+export default function Dashboard({ subscription, plans, apiKey, activations, latestRelease, updates }) {
+    const { auth, flash } = usePage().props;
+    const [copied, setCopied] = useState(false);
     const user = auth.user;
-    const firstName = user.name.split(' ')[0];
-    const status = subscription?.status ?? 'inactive';
-    const plan = titleCase(subscription?.plan ?? 'No plan');
+    const visibleKey = flash.plain_api_key;
+    const currentPlan = subscription?.plan;
+    const active = ['active', 'trialing'].includes(subscription?.status);
+
+    const copyKey = async () => {
+        if (!visibleKey) return;
+        await navigator.clipboard.writeText(visibleKey);
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1800);
+    };
+
+    const rotateKey = () => {
+        if (window.confirm('Generate a new key? Your current key and connected devices will stop working.')) {
+            router.put('/api-key', {}, { preserveScroll: true });
+        }
+    };
+
+    const removeDevice = (activation) => {
+        if (window.confirm(`Deactivate ${activation.device_name || 'this Mac'}?`)) {
+            router.delete(`/devices/${activation.id}`, { preserveScroll: true });
+        }
+    };
 
     return (
         <SiteLayout>
-            <Head title="Your dashboard" />
-            <section className="dashboard-shell">
-                <div className="dashboard-head"><p className="eyebrow">Your LidUp</p><h1>Good to see you,<br /><em>{firstName}.</em></h1></div>
-                <div className="dashboard-grid">
-                    <article className="status-card">
-                        <div><span className="status-dot" /><span className="mono">{status.toUpperCase()}</span></div>
-                        <h2>{plan}</h2>
-                        <p>{subscription?.trial_ends_at ? `Trial ends ${formatDate(subscription.trial_ends_at)}` : 'Your subscription details will appear here.'}</p>
-                        <Link className="button" href="/download">Download for macOS <span>↓</span></Link>
-                        <Link className="manage-plan-link" href="/subscription">Manage subscription</Link>
-                        <small>Universal build · macOS 14+</small>
-                    </article>
-                    <article className="account-card">
-                        <p className="eyebrow">Account</p>
-                        <dl>
-                            <div><dt>Name</dt><dd>{user.name}</dd></div>
-                            <div><dt>Email</dt><dd>{user.email}</dd></div>
-                            <div><dt>Member since</dt><dd>{monthYear(user.created_at)}</dd></div>
-                        </dl>
-                    </article>
-                </div>
-                <section className="dashboard-updates">
-                    <div><p className="eyebrow">What’s new</p><h2>Product updates</h2></div>
-                    {updates.length ? updates.map((update) => (
-                        <article key={update.id}><time>{shortDate(update.published_at)}</time><div><h3>{update.title}</h3><p>{update.summary}</p></div></article>
-                    )) : (
-                        <article className="empty-update"><time>—</time><div><h3>The first build is taking shape</h3><p>Release notes will appear here as soon as the private beta opens.</p></div></article>
-                    )}
+            <Head title="Your LidUp account" />
+            <div className="account-dashboard">
+                <header className="account-dashboard-head">
+                    <div>
+                        <p className="eyebrow">Your LidUp account</p>
+                        <h1>Welcome back, {user.name.split(' ')[0]}.</h1>
+                    </div>
+                    <p>Choose your plan, manage your activation, and keep every Mac up to date.</p>
+                </header>
+
+                <section className="account-plans" aria-label="Available plans">
+                    {tiers.map((tier) => {
+                        const config = plans[tier.key];
+                        const selected = tier.key === currentPlan;
+                        const isFree = tier.key === 'free';
+                        return (
+                            <article className={`account-plan-card ${selected ? 'is-current' : ''} ${tier.badge ? 'is-featured' : ''}`} key={tier.key}>
+                                <div className="account-plan-title">
+                                    <h2>{tier.name}</h2>
+                                    {selected && <span>Current plan</span>}
+                                    {!selected && tier.badge && <span>{tier.badge}</span>}
+                                </div>
+                                <div className="account-plan-price">
+                                    <strong>€{isFree ? 0 : config.price}</strong>
+                                    <span>{isFree ? tier.suffix : `/ ${config.interval}`}</span>
+                                </div>
+                                <ul>
+                                    {tier.features.map((feature) => <li key={feature}><CheckIcon />{feature}</li>)}
+                                </ul>
+                                {isFree ? (
+                                    <Link className="account-plan-action is-quiet" href="/download">Download free</Link>
+                                ) : (
+                                    <Link className={`account-plan-action ${tier.badge ? 'is-primary' : ''}`} href="/subscription">
+                                        {selected ? 'Manage plan' : `Choose ${tier.name}`}
+                                    </Link>
+                                )}
+                                <small>{tier.note}</small>
+                            </article>
+                        );
+                    })}
                 </section>
-            </section>
+
+                <section className="license-wallet">
+                    <header className="license-wallet-head">
+                        <div>
+                            <div className="license-title-row">
+                                <h2>Activation key</h2>
+                                <span className={`license-state ${active ? 'is-active' : ''}`}><CheckIcon />{active ? 'Active' : 'Inactive'}</span>
+                            </div>
+                            <p>{subscription?.created_at ? `Plan started ${formatDate(subscription.created_at)}` : 'Created for your LidUp account'}</p>
+                        </div>
+                        <Link href="/subscription">Manage subscription</Link>
+                    </header>
+
+                    {(flash.api_key_message || flash.device_message) && (
+                        <div className="wallet-message">{flash.api_key_message || flash.device_message}</div>
+                    )}
+
+                    <div className="license-key-block">
+                        <label>Activation key</label>
+                        <div className="license-key-field">
+                            <code>{visibleKey ?? `${apiKey.prefix}${'•'.repeat(30)}`}</code>
+                            <button type="button" onClick={visibleKey ? copyKey : rotateKey} aria-label={visibleKey ? 'Copy activation key' : 'Generate a new activation key'}>
+                                {visibleKey ? (copied ? 'Copied' : <CopyIcon />) : 'Generate new key'}
+                            </button>
+                        </div>
+                        {!visibleKey && <p>For security, the full key is shown only when it is first generated.</p>}
+                    </div>
+
+                    <dl className="license-facts">
+                        <div><dt>Plan</dt><dd>{titleCase(currentPlan ?? 'Free')}</dd></div>
+                        <div><dt>Status</dt><dd>{titleCase(subscription?.status ?? 'Inactive')}</dd></div>
+                        <div><dt>Devices</dt><dd>{activations.length} of {plans[currentPlan]?.devices ?? 0} active</dd></div>
+                        <div><dt>Updates</dt><dd>{active ? 'Included with your plan' : 'Free downloads available'}</dd></div>
+                    </dl>
+
+                    <div className="wallet-section">
+                        <div className="wallet-section-title">
+                            <h3>Active Macs</h3>
+                            <span>{activations.length} connected</span>
+                        </div>
+                        <div className="wallet-list">
+                            {activations.length ? activations.map((activation) => (
+                                <article className="wallet-device" key={activation.id}>
+                                    <span className="wallet-device-icon"><LaptopIcon /></span>
+                                    <div>
+                                        <strong>{activation.device_name || 'Unnamed Mac'}</strong>
+                                        <small>macOS · LidUp {activation.app_version || 'version unknown'} · Activated {formatDate(activation.activated_at)}</small>
+                                    </div>
+                                    <button type="button" onClick={() => removeDevice(activation)} aria-label={`Deactivate ${activation.device_name || 'Mac'}`}><TrashIcon /></button>
+                                </article>
+                            )) : (
+                                <div className="wallet-empty">No Macs activated yet. Paste your activation key into LidUp to connect one.</div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="wallet-section">
+                        <div className="wallet-section-title"><h3>Latest download</h3></div>
+                        <div className="wallet-download">
+                            <div>
+                                <strong>{latestRelease ? `LidUp ${latestRelease.version}` : 'LidUp for macOS'}</strong>
+                                <small>{latestRelease ? `Released ${formatDate(latestRelease.published_at)}` : 'The first signed build is coming soon'}</small>
+                            </div>
+                            {latestRelease?.available
+                                ? <a className="wallet-download-button" href="/download/latest"><DownloadIcon />Download</a>
+                                : <Link className="wallet-download-button is-disabled" href="/download">View download</Link>}
+                        </div>
+                    </div>
+                </section>
+
+                {updates.length > 0 && (
+                    <section className="account-update-strip">
+                        <div><p className="eyebrow">Latest update</p><h2>{updates[0].title}</h2><p>{updates[0].summary}</p></div>
+                        <time>{formatDate(updates[0].published_at)}</time>
+                    </section>
+                )}
+            </div>
         </SiteLayout>
     );
 }
 
-const date = (value, options) => new Intl.DateTimeFormat('en-US', options).format(new Date(value));
-const formatDate = (value) => date(value, { month: 'short', day: 'numeric', year: 'numeric' });
-const monthYear = (value) => date(value, { month: 'short', year: 'numeric' });
-const shortDate = (value) => date(value, { month: 'short', day: 'numeric' });
-const titleCase = (value) => value.charAt(0).toUpperCase() + value.slice(1);
+function CheckIcon() {
+    return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 12 3 3 7-7" /><circle cx="12" cy="12" r="9" /></svg>;
+}
+function CopyIcon() {
+    return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></svg>;
+}
+function LaptopIcon() {
+    return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="11" rx="2" /><path d="M3 19h18M7 15l-1 4m11-4 1 4" /></svg>;
+}
+function TrashIcon() {
+    return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13M10 11v5m4-5v5" /></svg>;
+}
+function DownloadIcon() {
+    return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 18v3h14v-3" /></svg>;
+}
+
+const formatDate = (value) => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(value));
+const titleCase = (value) => value.charAt(0).toUpperCase() + value.slice(1).replace('_', ' ');

@@ -11,7 +11,7 @@ class SubscriptionService
     public function startTrial(User $user, string $plan): Subscription
     {
         return DB::transaction(function () use ($user, $plan) {
-            $subscription = $user->subscription()->updateOrCreate(
+            $subscription = $user->appSubscription()->updateOrCreate(
                 ['user_id' => $user->id],
                 [
                     'plan' => $plan,
@@ -88,5 +88,23 @@ class SubscriptionService
             'payload' => $payload ?: null,
             'occurred_at' => now(),
         ]);
+    }
+
+    public function recordProviderEvent(
+        Subscription $subscription,
+        string $type,
+        ?string $providerEventId = null,
+    ): void {
+        $attributes = [
+            'user_id' => $subscription->user_id ?? $subscription->billable_id,
+            'type' => $type,
+            'provider_event_id' => $providerEventId,
+            'payload' => null,
+            'occurred_at' => now(),
+        ];
+
+        $providerEventId
+            ? $subscription->events()->firstOrCreate(['provider_event_id' => $providerEventId], $attributes)
+            : $subscription->events()->create($attributes);
     }
 }

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class Release extends Model
 {
@@ -21,6 +22,35 @@ class Release extends Model
             'is_current' => 'boolean',
             'published_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (Release $release): void {
+            if (! $release->file_path || ! $release->isDirty('file_path')) {
+                return;
+            }
+
+            $disk = Storage::disk('local');
+
+            if (! $disk->exists($release->file_path)) {
+                return;
+            }
+
+            $release->file_size = $disk->size($release->file_path);
+            $release->sha256 = hash_file('sha256', $disk->path($release->file_path));
+        });
+
+        static::saved(function (Release $release): void {
+            if (! $release->is_current) {
+                return;
+            }
+
+            static::query()
+                ->whereKeyNot($release->getKey())
+                ->where('is_current', true)
+                ->update(['is_current' => false]);
+        });
     }
 
     public function scopeAvailable(Builder $query): Builder

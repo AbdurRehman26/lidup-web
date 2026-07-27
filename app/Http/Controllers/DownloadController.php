@@ -53,10 +53,17 @@ class DownloadController extends Controller
             'downloaded_at' => now(),
         ]);
 
+        $extension = strtolower(pathinfo($release->file_path, PATHINFO_EXTENSION)) ?: 'dmg';
+        $contentType = match ($extension) {
+            'pkg' => 'application/x-newton-compatible-pkg',
+            'zip' => 'application/zip',
+            default => 'application/x-apple-diskimage',
+        };
+
         return response()->download(
             Storage::disk('local')->path($release->file_path),
-            "LidUp-{$release->version}.dmg",
-            ['Content-Type' => 'application/x-apple-diskimage'],
+            "LidUp-{$release->version}.{$extension}",
+            ['Content-Type' => $contentType],
         );
     }
 

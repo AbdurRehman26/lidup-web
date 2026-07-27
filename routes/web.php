@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\ApiKeyController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DeviceController;
 use App\Http\Controllers\DownloadController;
 use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\SubscriptionController;
@@ -28,7 +30,12 @@ Route::post('/updates', [NewsletterController::class, 'store'])
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
     Route::get('/subscription', [SubscriptionController::class, 'show'])->name('subscription.show');
+    Route::post('/subscription/checkout', [SubscriptionController::class, 'checkout'])->name('subscription.checkout');
     Route::patch('/subscription', [SubscriptionController::class, 'update'])->name('subscription.update');
     Route::delete('/subscription', [SubscriptionController::class, 'cancel'])->name('subscription.cancel');
+    Route::post('/api-key', [ApiKeyController::class, 'store'])->name('api-key.store');
+    Route::put('/api-key', [ApiKeyController::class, 'rotate'])->name('api-key.rotate');
+    Route::delete('/api-key', [ApiKeyController::class, 'destroy'])->name('api-key.destroy');
+    Route::delete('/devices/{activation}', [DeviceController::class, 'destroy'])->name('devices.destroy');
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 });

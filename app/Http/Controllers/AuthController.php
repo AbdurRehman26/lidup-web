@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Services\SubscriptionService;
+use App\Services\ApiKeyService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -27,8 +27,10 @@ class AuthController extends Controller
         ]);
     }
 
-    public function register(Request $request, SubscriptionService $subscriptions): RedirectResponse
-    {
+    public function register(
+        Request $request,
+        ApiKeyService $apiKeys,
+    ): RedirectResponse {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:80'],
             'email' => ['required', 'email', 'max:255', 'unique:users'],
@@ -42,12 +44,15 @@ class AuthController extends Controller
             'password' => Hash::make($validated['password']),
         ]);
 
-        $subscriptions->startTrial($user, $validated['plan']);
+        $createdKey = $apiKeys->create($user);
 
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('dashboard');
+        return redirect()
+            ->route('subscription.show', ['plan' => $validated['plan']])
+            ->with('plain_api_key', $createdKey['plain_text'])
+            ->with('api_key_message', 'Your activation key is ready. Copy it now—it will only be shown once.');
     }
 
     public function showLogin(): Response

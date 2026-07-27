@@ -8,6 +8,18 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('subscriptions')) {
+            Schema::table('subscriptions', function (Blueprint $table) {
+                $table->foreignId('user_id')->nullable()->unique()->constrained()->cascadeOnDelete();
+                $table->string('provider')->nullable();
+                $table->string('provider_id')->nullable()->unique();
+                $table->string('plan')->default('early-access');
+                $table->timestamp('renews_at')->nullable();
+            });
+
+            return;
+        }
+
         Schema::create('subscriptions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->unique()->constrained()->cascadeOnDelete();
@@ -24,6 +36,13 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('subscriptions');
+        if (! Schema::hasTable('subscriptions')) {
+            return;
+        }
+
+        Schema::table('subscriptions', function (Blueprint $table) {
+            $table->dropConstrainedForeignId('user_id');
+            $table->dropColumn(['provider', 'provider_id', 'plan', 'renews_at']);
+        });
     }
 };
