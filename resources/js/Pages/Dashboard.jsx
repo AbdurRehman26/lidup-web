@@ -32,7 +32,8 @@ export default function Dashboard({ subscription, plans, apiKey, activations, la
     const user = auth.user;
     const visibleKey = flash.plain_api_key;
     const currentPlan = subscription?.plan;
-    const active = ['active', 'trialing'].includes(subscription?.status);
+    const active = Boolean(subscription?.paddle_id)
+        && ['active', 'trialing'].includes(subscription?.status);
 
     const copyKey = async () => {
         if (!visibleKey) return;

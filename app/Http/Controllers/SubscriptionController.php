@@ -35,7 +35,9 @@ class SubscriptionController extends Controller
             ]);
         }
 
-        if ($request->user()->subscribed('default')) {
+        $subscription = $request->user()->subscription('default');
+
+        if ($subscription?->paddle_id && $subscription->valid()) {
             throw ValidationException::withMessages([
                 'plan' => 'You already have a subscription. Change your existing plan instead.',
             ]);
@@ -56,7 +58,7 @@ class SubscriptionController extends Controller
         $subscription = $request->user()->subscription('default');
         $priceId = config("plans.{$validated['plan']}.paddle_price_id");
 
-        if (! $subscription || ! $subscription->valid()) {
+        if (! $subscription || ! $subscription->paddle_id || ! $subscription->valid()) {
             return back()->withErrors(['plan' => 'Start a Paddle subscription before changing plans.']);
         }
 
@@ -75,7 +77,7 @@ class SubscriptionController extends Controller
     {
         $subscription = $request->user()->subscription('default');
 
-        if ($subscription && ! $subscription->canceled()) {
+        if ($subscription?->paddle_id && ! $subscription->canceled()) {
             $subscription->cancel();
         }
 

@@ -109,6 +109,21 @@ class SiteFlowTest extends TestCase
             ->assertJsonPath('checkout.customData.subscription_type', 'default');
     }
 
+    public function test_a_legacy_subscription_without_a_paddle_id_never_calls_the_swap_api(): void
+    {
+        $user = User::factory()->create();
+        $user->appSubscription()->create([
+            'plan' => 'personal',
+            'status' => 'trialing',
+        ]);
+        config(['plans.pro.paddle_price_id' => 'pri_pro_test']);
+
+        $this->actingAs($user)
+            ->patch('/subscription', ['plan' => 'pro'])
+            ->assertRedirect()
+            ->assertSessionHasErrors('plan');
+    }
+
     public function test_the_current_release_can_be_downloaded_without_an_account(): void
     {
         Storage::fake('local');

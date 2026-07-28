@@ -9,7 +9,8 @@ export default function Subscription({ subscription, plans, billingConfigured })
     const form = useForm({ plan: initialPlan });
     const [checkoutLoading, setCheckoutLoading] = useState(false);
     const [checkoutError, setCheckoutError] = useState('');
-    const hasSubscription = ['active', 'trialing', 'past_due'].includes(subscription?.status);
+    const hasSubscription = Boolean(subscription?.paddle_id)
+        && ['active', 'trialing', 'past_due'].includes(subscription?.status);
 
     const save = async (event) => {
         event.preventDefault();
