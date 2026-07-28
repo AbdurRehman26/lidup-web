@@ -22,6 +22,6 @@ class Subscription extends CashierSubscription
 
     public function isEntitled(): bool
     {
-        return $this->valid();
+        return filled($this->paddle_id) && $this->valid();
     }
 }

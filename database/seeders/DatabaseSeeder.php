@@ -16,6 +16,10 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        if (filled(config('admin.default_user.email')) && filled(config('admin.default_user.password'))) {
+            $this->call(AdminUserSeeder::class);
+        }
+
         Release::query()->firstOrCreate([
             'version' => '1.0.0-beta.1',
         ], [

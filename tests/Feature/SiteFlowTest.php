@@ -293,6 +293,7 @@ class SiteFlowTest extends TestCase
     {
         $user = User::factory()->create();
         $user->appSubscription()->create([
+            'paddle_id' => 'sub_personal_test',
             'plan' => 'personal',
             'status' => 'trialing',
             'trial_ends_at' => now()->addDays(14),
@@ -328,6 +329,7 @@ class SiteFlowTest extends TestCase
     {
         $user = User::factory()->create();
         $user->appSubscription()->create([
+            'paddle_id' => 'sub_pro_test',
             'plan' => 'pro',
             'status' => 'active',
         ]);
@@ -347,5 +349,49 @@ class SiteFlowTest extends TestCase
         $this->withToken($newKey)
             ->postJson('/api/v1/activation/verify', ['device_id' => 'new-device'])
             ->assertOk();
+    }
+
+    public function test_an_activation_key_can_validate_a_paid_license_without_activating_a_device(): void
+    {
+        $user = User::factory()->create();
+        $user->appSubscription()->create([
+            'paddle_id' => 'sub_license_test',
+            'plan' => 'personal',
+            'status' => 'active',
+        ]);
+        $plainText = app(ApiKeyService::class)->create($user)['plain_text'];
+
+        $this->withToken($plainText)
+            ->getJson('/api/v1/license/validate')
+            ->assertOk()
+            ->assertJson([
+                'valid' => true,
+                'reason' => null,
+                'plan' => 'personal',
+                'subscription_status' => 'active',
+                'device_limit' => 1,
+                'active_devices' => 0,
+            ]);
+
+        $this->assertDatabaseCount('app_activations', 0);
+    }
+
+    public function test_license_validation_rejects_invalid_and_unsubscribed_keys(): void
+    {
+        $this->withToken('invalid-license-key')
+            ->getJson('/api/v1/license/validate')
+            ->assertUnauthorized();
+
+        $user = User::factory()->create();
+        $plainText = app(ApiKeyService::class)->create($user)['plain_text'];
+
+        $this->withToken($plainText)
+            ->postJson('/api/v1/license/validate')
+            ->assertForbidden()
+            ->assertJson([
+                'valid' => false,
+                'reason' => 'subscription_inactive',
+                'subscription_status' => 'inactive',
+            ]);
     }
 }
