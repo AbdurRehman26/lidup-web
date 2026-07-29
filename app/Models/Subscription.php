@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Laravel\Paddle\Subscription as CashierSubscription;
 
@@ -18,6 +19,11 @@ class Subscription extends CashierSubscription
     public function events(): HasMany
     {
         return $this->hasMany(SubscriptionEvent::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function isEntitled(): bool

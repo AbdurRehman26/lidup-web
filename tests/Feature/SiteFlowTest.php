@@ -172,6 +172,28 @@ class SiteFlowTest extends TestCase
         $this->post('/updates')->assertNotFound();
     }
 
+    public function test_swagger_documentation_describes_the_public_api(): void
+    {
+        $this->artisan('l5-swagger:generate')->assertSuccessful();
+
+        $document = json_decode(
+            file_get_contents(storage_path('api-docs/api-docs.json')),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+
+        $this->assertSame('LidUp API', $document['info']['title']);
+        $this->assertSame('/api/v1', $document['servers'][0]['url']);
+        $this->assertArrayHasKey('licenseKey', $document['components']['securitySchemes']);
+        $this->assertArrayHasKey('/license/validate', $document['paths']);
+        $this->assertArrayHasKey('/activation/verify', $document['paths']);
+        $this->assertArrayHasKey('/activation/{deviceId}', $document['paths']);
+
+        $this->get('/api/documentation')
+            ->assertOk()
+            ->assertSee('LidUp API');
+    }
+
     public function test_dashboard_requires_authentication(): void
     {
         $this->get('/dashboard')->assertRedirect('/login');
@@ -284,6 +306,28 @@ class SiteFlowTest extends TestCase
             ->assertOk()
             ->assertSee('macOS installer')
             ->assertSee('Make this the latest build');
+    }
+
+    public function test_a_super_admin_can_view_paid_subscriptions(): void
+    {
+        $admin = User::factory()->create();
+        $admin->forceFill(['is_admin' => true])->save();
+        $subscriber = User::factory()->create([
+            'name' => 'Paid Subscriber',
+            'email' => 'paid@example.com',
+        ]);
+        $subscriber->appSubscription()->create([
+            'paddle_id' => 'sub_admin_listing',
+            'plan' => 'personal',
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/admin/subscriptions')
+            ->assertOk()
+            ->assertSee('Paid Subscriber')
+            ->assertSee('paid@example.com')
+            ->assertSee('sub_admin_listing');
     }
 
     public function test_an_admin_can_generate_and_email_an_activation_key_from_the_users_list(): void

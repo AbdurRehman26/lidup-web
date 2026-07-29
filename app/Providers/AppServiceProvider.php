@@ -27,6 +27,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        config([
+            'l5-swagger.documentations.default.api.title' => 'LidUp API',
+            'l5-swagger.defaults.generate_always' => app()->isLocal(),
+        ]);
+
         Cashier::useSubscriptionModel(Subscription::class);
 
         Event::listen(SubscriptionCreated::class, SyncPaddleSubscription::class);

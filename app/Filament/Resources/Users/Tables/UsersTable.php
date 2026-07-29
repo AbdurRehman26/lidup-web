@@ -2,10 +2,12 @@
 
 namespace App\Filament\Resources\Users\Tables;
 
+use App\Models\SubscriptionPackage;
 use App\Models\User;
 use App\Notifications\ActivationKeyIssued;
 use App\Services\ApiKeyService;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -89,6 +91,67 @@ class UsersTable
                     ]),
             ])
             ->recordActions([
+                Action::make('assignPackage')
+                    ->label('Assign subscription')
+                    ->icon('heroicon-o-rectangle-stack')
+                    ->color('info')
+                    ->modalHeading('Assign a subscription package')
+                    ->modalDescription('This immediately replaces the user’s current package access. The expiry date is calculated from the selected package, and unlimited packages never expire.')
+                    ->modalSubmitActionLabel('Assign subscription')
+                    ->schema([
+                        Select::make('subscription_package_id')
+                            ->label('Subscription package')
+                            ->options(SubscriptionPackage::query()
+                                ->active()
+                                ->withCount('users')
+                                ->orderBy('sort_order')
+                                ->get()
+                                ->mapWithKeys(fn (SubscriptionPackage $package): array => [
+                                    $package->id => implode(' · ', [
+                                        $package->name,
+                                        $package->is_paid ? "{$package->currency} {$package->price}" : 'Free',
+                                        $package->durationLabel(),
+                                        $package->device_limit.' '.str('Mac')->plural($package->device_limit),
+                                        $package->users_count.' / '.($package->user_limit ?? '∞').' assigned',
+                                        $package->is_visible ? 'Shown on website' : 'Hidden',
+                                    ]),
+                                ]))
+                            ->searchable()
+                            ->helperText('Only active packages are listed. Package capacity is shown for context; super admins may assign a package even when its public allocation is full.')
+                            ->required(),
+                    ])
+                    ->action(function (User $record, array $data): void {
+                        $package = SubscriptionPackage::findOrFail($data['subscription_package_id']);
+
+                        $record->forceFill([
+                            'subscription_package_id' => $package->id,
+                            'trial_plan' => $package->plan,
+                            'trial_started_at' => now(),
+                            'trial_ends_at' => $package->endsAt(),
+                        ])->save();
+
+                        Notification::make()
+                            ->title("{$package->name} assigned")
+                            ->body("Access was updated for {$record->email}.")
+                            ->success()
+                            ->send();
+                    }),
+                Action::make('endPackageAccess')
+                    ->label('End package access')
+                    ->icon('heroicon-o-no-symbol')
+                    ->color('danger')
+                    ->visible(fn (User $record): bool => $record->subscription_package_id !== null && $record->onAppTrial())
+                    ->requiresConfirmation()
+                    ->action(function (User $record): void {
+                        $record->forceFill([
+                            'trial_ends_at' => now(),
+                        ])->save();
+
+                        Notification::make()
+                            ->title('Package access ended')
+                            ->success()
+                            ->send();
+                    }),
                 Action::make('generateActivationKey')
                     ->label('Generate & email key')
                     ->icon('heroicon-o-paper-airplane')

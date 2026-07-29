@@ -7,9 +7,50 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\PersonalAccessToken;
+use OpenApi\Attributes as OA;
 
 class ActivationController extends Controller
 {
+    #[OA\Post(
+        path: '/activation/verify',
+        operationId: 'verifyActivation',
+        summary: 'Activate or verify a Mac',
+        security: [['licenseKey' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['device_id'],
+                properties: [
+                    new OA\Property(property: 'device_id', type: 'string', maxLength: 191, example: 'macbook-pro-hardware-id'),
+                    new OA\Property(property: 'device_name', type: 'string', maxLength: 120, nullable: true, example: 'Work MacBook Pro'),
+                    new OA\Property(property: 'app_version', type: 'string', maxLength: 40, nullable: true, example: '1.2.0'),
+                ],
+            ),
+        ),
+        tags: ['Activation'],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'The Mac is activated and the entitlement is valid.',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'valid', type: 'boolean', example: true),
+                        new OA\Property(property: 'activation_id', type: 'integer', example: 42),
+                        new OA\Property(property: 'plan', type: 'string', example: 'personal'),
+                        new OA\Property(property: 'subscription_status', type: 'string', example: 'active'),
+                        new OA\Property(property: 'entitlement_source', type: 'string', enum: ['subscription', 'trial']),
+                        new OA\Property(property: 'entitled_until', type: 'string', format: 'date-time', nullable: true),
+                        new OA\Property(property: 'device_limit', type: 'integer', example: 1),
+                        new OA\Property(property: 'active_devices', type: 'integer', example: 1),
+                    ],
+                ),
+            ),
+            new OA\Response(response: 401, description: 'The activation key is missing or invalid.'),
+            new OA\Response(response: 403, description: 'The entitlement is inactive or the key lacks permission.'),
+            new OA\Response(response: 409, description: 'The package device limit has been reached.'),
+            new OA\Response(response: 422, description: 'The device details are invalid.'),
+        ],
+    )]
     public function verify(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -86,6 +127,38 @@ class ActivationController extends Controller
         ]);
     }
 
+    #[OA\Delete(
+        path: '/activation/{deviceId}',
+        operationId: 'deactivateDevice',
+        summary: 'Deactivate a Mac',
+        security: [['licenseKey' => []]],
+        tags: ['Activation'],
+        parameters: [
+            new OA\Parameter(
+                name: 'deviceId',
+                description: 'The device identifier originally used during activation.',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'string'),
+                example: 'macbook-pro-hardware-id',
+            ),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'The Mac was deactivated.',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'deactivated', type: 'boolean', example: true),
+                        new OA\Property(property: 'device_id', type: 'string', example: 'macbook-pro-hardware-id'),
+                    ],
+                ),
+            ),
+            new OA\Response(response: 401, description: 'The activation key is missing or invalid.'),
+            new OA\Response(response: 403, description: 'The key cannot deactivate devices.'),
+            new OA\Response(response: 404, description: 'No active device matches the identifier.'),
+        ],
+    )]
     public function deactivate(Request $request, string $deviceId): JsonResponse
     {
         $accessToken = $this->personalAccessToken($request);
