@@ -22,17 +22,19 @@ class LicenseController extends Controller
 
         $user = $request->user();
         $subscription = $user->appSubscription;
-        $valid = (bool) $subscription?->isEntitled();
-        $deviceLimit = $subscription
-            ? (int) data_get(config('plans'), "{$subscription->plan}.devices", 0)
-            : 0;
+        $valid = $user->hasAppEntitlement();
+        $plan = $user->entitlementPlan();
+        $deviceLimit = $user->onAppTrial() && $user->subscriptionPackage
+            ? $user->subscriptionPackage->device_limit
+            : ($plan ? (int) data_get(config('plans'), "{$plan}.devices", 0) : 0);
 
         return response()->json([
             'valid' => $valid,
             'reason' => $valid ? null : 'subscription_inactive',
-            'plan' => $subscription?->plan,
-            'subscription_status' => $subscription?->status ?? 'inactive',
-            'entitled_until' => ($subscription?->ends_at ?? $subscription?->trial_ends_at)?->toIso8601String(),
+            'plan' => $plan,
+            'subscription_status' => $user->entitlementStatus(),
+            'entitlement_source' => $subscription?->isEntitled() === true ? 'subscription' : ($user->onAppTrial() ? 'trial' : null),
+            'entitled_until' => $user->entitlementEndsAt()?->toIso8601String(),
             'device_limit' => $deviceLimit,
             'active_devices' => $user->appActivations()->active()->count(),
         ], $valid ? 200 : 403);

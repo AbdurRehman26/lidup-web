@@ -9,6 +9,7 @@ use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -26,6 +27,11 @@ class User extends Authenticatable implements FilamentUser
     public function appSubscription(): MorphOne
     {
         return $this->morphOne(Subscription::class, 'billable')->latestOfMany();
+    }
+
+    public function subscriptionPackage(): BelongsTo
+    {
+        return $this->belongsTo(SubscriptionPackage::class);
     }
 
     public function downloads(): HasMany
@@ -48,6 +54,48 @@ class User extends Authenticatable implements FilamentUser
         return $this->is_admin;
     }
 
+    public function onAppTrial(): bool
+    {
+        return $this->trial_started_at !== null
+            && ($this->trial_ends_at === null || $this->trial_ends_at->isFuture());
+    }
+
+    public function hasAppEntitlement(): bool
+    {
+        return $this->appSubscription?->isEntitled() === true || $this->onAppTrial();
+    }
+
+    public function entitlementPlan(): ?string
+    {
+        return $this->appSubscription?->isEntitled() === true
+            ? $this->appSubscription->plan
+            : ($this->onAppTrial() ? $this->trial_plan : null);
+    }
+
+    public function entitlementStatus(): string
+    {
+        if ($this->appSubscription?->isEntitled() === true) {
+            return $this->appSubscription->status;
+        }
+
+        if ($this->onAppTrial()) {
+            return 'trialing';
+        }
+
+        return $this->trial_started_at !== null && $this->trial_ends_at?->isPast() === true
+            ? 'trial_expired'
+            : 'inactive';
+    }
+
+    public function entitlementEndsAt(): mixed
+    {
+        if ($this->appSubscription?->isEntitled() === true) {
+            return $this->appSubscription->ends_at ?? $this->appSubscription->trial_ends_at;
+        }
+
+        return $this->trial_ends_at;
+    }
+
     /**
      * Get the attributes that should be cast.
      *
@@ -58,6 +106,8 @@ class User extends Authenticatable implements FilamentUser
         return [
             'email_verified_at' => 'datetime',
             'is_admin' => 'boolean',
+            'trial_started_at' => 'datetime',
+            'trial_ends_at' => 'datetime',
             'password' => 'hashed',
         ];
     }

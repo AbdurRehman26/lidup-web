@@ -26,14 +26,15 @@ const tiers = [
     },
 ];
 
-export default function Dashboard({ subscription, plans, apiKey, activations, latestRelease, updates }) {
+export default function Dashboard({ subscription, trial, plans, apiKey, activations, latestRelease, updates }) {
     const { auth, flash } = usePage().props;
     const [copied, setCopied] = useState(false);
     const user = auth.user;
     const visibleKey = flash.plain_api_key;
-    const currentPlan = subscription?.plan;
-    const active = Boolean(subscription?.paddle_id)
-        && ['active', 'trialing'].includes(subscription?.status);
+    const currentPlan = subscription?.plan ?? (trial?.active ? trial.plan : null);
+    const active = (Boolean(subscription?.paddle_id) && ['active', 'trialing'].includes(subscription?.status))
+        || trial?.active;
+    const accessStatus = subscription?.status ?? trial?.status ?? 'inactive';
 
     const copyKey = async () => {
         if (!visibleKey) return;
@@ -105,7 +106,11 @@ export default function Dashboard({ subscription, plans, apiKey, activations, la
                                 <h2>Activation key</h2>
                                 <span className={`license-state ${active ? 'is-active' : ''}`}><CheckIcon />{active ? 'Active' : 'Inactive'}</span>
                             </div>
-                            <p>{subscription?.created_at ? `Plan started ${formatDate(subscription.created_at)}` : 'Created for your LidUp account'}</p>
+                            <p>{subscription?.created_at
+                                ? `Plan started ${formatDate(subscription.created_at)}`
+                                : trial?.active
+                                    ? `${trial.package?.name ?? 'Free trial'} · ${trial.ends_at ? `ends ${formatDate(trial.ends_at)}` : 'unlimited access'}`
+                                    : 'Created for your LidUp account'}</p>
                         </div>
                         <Link href="/subscription">Manage subscription</Link>
                     </header>
@@ -127,8 +132,8 @@ export default function Dashboard({ subscription, plans, apiKey, activations, la
 
                     <dl className="license-facts">
                         <div><dt>Plan</dt><dd>{titleCase(currentPlan ?? 'Free')}</dd></div>
-                        <div><dt>Status</dt><dd>{titleCase(subscription?.status ?? 'Inactive')}</dd></div>
-                        <div><dt>Devices</dt><dd>{activations.length} of {plans[currentPlan]?.devices ?? 0} active</dd></div>
+                        <div><dt>Status</dt><dd>{titleCase(accessStatus)}</dd></div>
+                        <div><dt>Devices</dt><dd>{activations.length} of {trial?.package?.device_limit ?? plans[currentPlan]?.devices ?? 0} active</dd></div>
                         <div><dt>Updates</dt><dd>{active ? 'Included with your plan' : 'Free downloads available'}</dd></div>
                     </dl>
 

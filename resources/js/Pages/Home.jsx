@@ -1,36 +1,40 @@
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
+import ClaudeIcon from '@lobehub/icons/es/Claude/components/Color.js';
+import CodexIcon from '@lobehub/icons/es/Codex/components/Color.js';
+import CursorIcon from '@lobehub/icons/es/Cursor/components/Mono.js';
+import GeminiIcon from '@lobehub/icons/es/Gemini/components/Color.js';
+import GithubCopilotIcon from '@lobehub/icons/es/GithubCopilot/components/Mono.js';
+import OpenCodeIcon from '@lobehub/icons/es/OpenCode/components/Mono.js';
 import ProductStage from '../Components/ProductStage';
 import SiteLayout from '../Layouts/SiteLayout';
 
-export default function Home() {
-    const { flash } = usePage().props;
-    const form = useForm({ email: '' });
+const supportedAgents = [
+    { name: 'Codex', maker: 'OpenAI', icon: CodexIcon, className: 'codex' },
+    { name: 'Claude AI', maker: 'Anthropic', icon: ClaudeIcon, className: 'claude' },
+    { name: 'OpenCode', maker: 'Open source', icon: OpenCodeIcon, className: 'opencode' },
+    { name: 'Cursor', maker: 'Anysphere', icon: CursorIcon, className: 'cursor' },
+    { name: 'Gemini', maker: 'Google', icon: GeminiIcon, className: 'gemini' },
+    { name: 'GitHub Copilot', maker: 'GitHub', icon: GithubCopilotIcon, className: 'copilot' },
+];
 
-    const subscribe = (event) => {
-        event.preventDefault();
-        form.post('/updates', { preserveScroll: true, onSuccess: () => form.reset() });
-    };
-
+export default function Home({ trialOffer, packages = [] }) {
     return (
         <SiteLayout>
-            <Head title="Keep your Mac working" />
+            <Head title="Lidup your Mac" />
             <section className="hero">
                 <div className="hero-copy reveal">
                     <div className="availability"><span /> Now in private beta for macOS</div>
-                    <h1>Close your Mac.<br /><span>Keep work running.</span></h1>
+                    <h1>Lidup your Mac.<br /><span>Keep work running.</span></h1>
                     <p className="hero-lede">LidUp keeps builds, coding agents, and long-running tasks moving—even when the lid is closed.</p>
                     <div className="hero-actions">
                         <Link className="button" href="/download"><span className="apple-mark">●</span> Download for Mac</Link>
                         <a className="secondary-button" href="#how-it-works">See how it works</a>
                     </div>
-                    <p className="microcopy">Requires macOS 14 or later · 14 days free</p>
+                    <p className="microcopy">
+                        Requires macOS 14 or later · {trialOffer ? `${trialOffer.duration_label} free` : 'Free download'}
+                    </p>
                 </div>
                 <ProductStage />
-            </section>
-
-            <section className="proof-strip">
-                <p>Works quietly with the tools you already use</p>
-                <div><span>⌘</span> Claude Code</div><div><span>◉</span> Codex</div><div><span>✦</span> Xcode</div><div><span>›_</span> Terminal</div>
             </section>
 
             <section className="story-section">
@@ -47,6 +51,21 @@ export default function Home() {
 
             <section id="how-it-works" className="workflow-section">
                 <div className="section-heading"><p className="kicker">Effortless by design</p><h2>Three steps. Then forget about it.</h2></div>
+                <div className="agent-support">
+                    <div className="agent-support-head">
+                        <div><span className="support-light" />Supported AI agents</div>
+                        <p>Keep the coding agent you already use running while your Mac is closed.</p>
+                    </div>
+                    <div className="agent-grid">
+                        {supportedAgents.map(({ name, maker, icon: Icon, className }) => (
+                            <article className={`agent-card ${className}`} key={name}>
+                                <span className="agent-icon"><Icon size={30} /></span>
+                                <span><b>{name}</b><small>{maker}</small></span>
+                                <i aria-label="Supported" title="Supported">✓</i>
+                            </article>
+                        ))}
+                    </div>
+                </div>
                 <div className="workflow-grid">
                     <Feature icon="⌁" title="Choose what matters">Pick an active process or create a rule for the tools you trust.</Feature>
                     <Feature icon="▱" title="Close the lid">LidUp keeps your selected work active while the display stays off.</Feature>
@@ -79,19 +98,32 @@ export default function Home() {
             <section id="pricing" className="pricing-section">
                 <div className="price-copy"><p className="kicker">Simple pricing</p><h2>One small app.<br />One simple plan.</h2><p>Everything you need to keep your Mac working while you move.</p></div>
                 <div className="pricing-cards">
-                    <PlanCard name="Personal" price="4" devices="1 Mac" href="/register?plan=personal" />
-                    <PlanCard name="Pro" price="8" devices="Up to 3 Macs" href="/register?plan=pro" featured />
+                    <PlanCard name="Personal" price="4" devices="1 Mac" href="/register?plan=personal" trialOffer={trialOffer} />
+                    <PlanCard name="Pro" price="8" devices="Up to 3 Macs" href="/register?plan=pro" trialOffer={trialOffer} featured />
                 </div>
+                {packages.length > 0 && (
+                    <div className="early-access-ladder">
+                        <header><span>Early-access packages</span><small>New accounts move through active tiers automatically.</small></header>
+                        <div>
+                            {packages.map((pkg) => (
+                                <article className={pkg.id === trialOffer?.id ? 'is-current' : ''} key={pkg.id}>
+                                    <span>{pkg.id === trialOffer?.id ? 'Open now' : pkg.is_paid ? 'Paid' : 'Upcoming'}</span>
+                                    <b>{pkg.name}</b>
+                                    <strong>{pkg.is_paid ? `${pkg.currency} ${pkg.price}` : pkg.duration_label}</strong>
+                                    <small>{pkg.user_limit ? `${pkg.users_count} of ${pkg.user_limit} assigned` : 'No user limit'}</small>
+                                </article>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </section>
 
-            <section className="updates-section">
-                <div><p className="kicker">Stay in the loop</p><h2>Good updates only.</h2><p>Occasional notes about beta access and meaningful new features.</p></div>
-                <form onSubmit={subscribe} className="updates-form">
-                    <label htmlFor="updates-email">Email address</label>
-                    <div><input id="updates-email" type="email" value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} placeholder="you@example.com" required /><button className="button" type="submit" disabled={form.processing}>Keep me posted</button></div>
-                    {form.errors.email && <p className="form-error">{form.errors.email}</p>}
-                    {flash.subscribed && <p className="form-success">{flash.subscribed}</p>}
-                </form>
+            <section className="faq-invite">
+                <div><p className="kicker">A few things worth knowing</p><h2>Questions,<br />answered clearly.</h2><p>From closed-lid behavior and battery safeguards to licenses, privacy, and updates.</p></div>
+                <Link className="faq-invite-link" href="/faqs">
+                    <span><b>Browse frequently asked questions</b><small>Practical answers about LidUp</small></span>
+                    <i aria-hidden="true">→</i>
+                </Link>
             </section>
         </SiteLayout>
     );
@@ -105,15 +137,15 @@ function Setting({ title, enabled }) {
     return <div className="setting-row"><span>{title}</span><i className={enabled ? 'toggle-on' : ''}><b /></i></div>;
 }
 
-function PlanCard({ name, price, devices, href, featured = false }) {
+function PlanCard({ name, price, devices, href, trialOffer, featured = false }) {
     return (
         <div className={`price-card${featured ? ' featured' : ''}`}>
             {featured && <span className="best-plan">Most popular</span>}
             <div className="price-card-head"><img src="/app-icon.png" alt="" /><div><b>{name}</b><span>{devices}</span></div></div>
             <div className="price"><strong>${price}</strong><span>per month</span></div>
             <ul><li>Unlimited protected sessions</li><li>Automatic process rules</li><li>Battery safety controls</li><li>All future updates</li></ul>
-            <Link className="button button-wide" href={href}>Start 14-day free trial</Link>
-            <small>No card required. Cancel anytime.</small>
+            <Link className="button button-wide" href={href}>{trialOffer ? `Start ${trialOffer.duration_label.toLowerCase()} free` : `Choose ${name}`}</Link>
+            <small>{trialOffer ? `${trialOffer.name} is currently open. No card required.` : 'Secure checkout powered by Paddle.'}</small>
         </div>
     );
 }

@@ -14,6 +14,7 @@ class DashboardController extends Controller
 {
     public function __invoke(Request $request, ApiKeyService $apiKeys): Response
     {
+        $request->user()->load('subscriptionPackage');
         $activeKey = $request->user()->tokens()->latest()->first();
 
         if (! $activeKey) {
@@ -31,6 +32,19 @@ class DashboardController extends Controller
 
         return Inertia::render('Dashboard', [
             'subscription' => $request->user()->appSubscription,
+            'trial' => [
+                'active' => $request->user()->onAppTrial(),
+                'status' => $request->user()->entitlementStatus(),
+                'plan' => $request->user()->trial_plan,
+                'started_at' => $request->user()->trial_started_at,
+                'ends_at' => $request->user()->trial_ends_at,
+                'cohort_position' => $request->user()->trial_cohort_position,
+                'package' => $request->user()->subscriptionPackage ? [
+                    'name' => $request->user()->subscriptionPackage->name,
+                    'duration' => $request->user()->subscriptionPackage->durationLabel(),
+                    'device_limit' => $request->user()->subscriptionPackage->device_limit,
+                ] : null,
+            ],
             'plans' => config('plans'),
             'apiKey' => [
                 'prefix' => 'lidup_',

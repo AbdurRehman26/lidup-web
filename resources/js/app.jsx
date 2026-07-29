@@ -2,7 +2,7 @@ import { createInertiaApp } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
 
 createInertiaApp({
-    title: (title) => title ? `${title} — LidUp` : 'LidUp — Step away. Keep moving.',
+    title: (title) => title ? `${title} — LidUp` : 'LidUp — Lidup your Mac',
     resolve: (name) => {
         const pages = import.meta.glob('./Pages/**/*.jsx', { eager: true });
         return pages[`./Pages/${name}.jsx`];

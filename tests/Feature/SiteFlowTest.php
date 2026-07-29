@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Models\Release;
-use App\Models\UpdateSubscriber;
+use App\Models\SubscriptionPackage;
 use App\Models\User;
 use App\Notifications\ActivationKeyIssued;
 use App\Services\ApiKeyService;
@@ -31,7 +31,7 @@ class SiteFlowTest extends TestCase
             );
     }
 
-    public function test_a_visitor_can_create_an_account_and_continue_to_checkout(): void
+    public function test_an_eligible_visitor_receives_a_free_trial_when_creating_an_account(): void
     {
         $this->post('/register', [
             'name' => 'Ada Lovelace',
@@ -39,11 +39,110 @@ class SiteFlowTest extends TestCase
             'password' => 'long-enough-password',
             'password_confirmation' => 'long-enough-password',
             'plan' => 'personal',
-        ])->assertRedirect('/subscription?plan=personal');
+        ])->assertRedirect('/dashboard');
 
         $this->assertAuthenticated();
-        $this->assertDatabaseHas('users', ['email' => 'ada@example.com']);
+        $user = User::where('email', 'ada@example.com')->firstOrFail();
+
+        $this->assertSame(1, $user->trial_cohort_position);
+        $this->assertSame('personal', $user->trial_plan);
+        $this->assertTrue($user->onAppTrial());
+        $this->assertEqualsWithDelta(now()->addDays(14)->timestamp, $user->trial_ends_at->timestamp, 5);
         $this->assertDatabaseCount('subscriptions', 0);
+    }
+
+    public function test_users_advance_through_day_month_and_unlimited_package_tiers(): void
+    {
+        SubscriptionPackage::query()->update(['is_active' => false]);
+        $dayTier = SubscriptionPackage::create([
+            'name' => 'Day tier',
+            'slug' => 'test-day-tier',
+            'plan' => 'personal',
+            'device_limit' => 1,
+            'user_limit' => 1,
+            'duration_unit' => 'days',
+            'duration_value' => 7,
+            'is_paid' => false,
+            'is_active' => true,
+            'is_visible' => true,
+            'sort_order' => 1,
+        ]);
+        $monthTier = SubscriptionPackage::create([
+            'name' => 'Month tier',
+            'slug' => 'test-month-tier',
+            'plan' => 'pro',
+            'device_limit' => 3,
+            'user_limit' => 1,
+            'duration_unit' => 'months',
+            'duration_value' => 2,
+            'is_paid' => false,
+            'is_active' => true,
+            'is_visible' => true,
+            'sort_order' => 2,
+        ]);
+        $unlimitedTier = SubscriptionPackage::create([
+            'name' => 'Unlimited tier',
+            'slug' => 'test-unlimited-tier',
+            'plan' => 'personal',
+            'device_limit' => 1,
+            'user_limit' => 1,
+            'duration_unit' => 'unlimited',
+            'is_paid' => false,
+            'is_active' => true,
+            'is_visible' => false,
+            'sort_order' => 3,
+        ]);
+
+        $this->post('/register', [
+            'name' => 'First User',
+            'email' => 'first@example.com',
+            'password' => 'long-enough-password',
+            'password_confirmation' => 'long-enough-password',
+            'plan' => 'personal',
+        ])->assertRedirect('/dashboard');
+
+        $this->post('/logout')->assertRedirect('/');
+
+        $this->post('/register', [
+            'name' => 'Second User',
+            'email' => 'second@example.com',
+            'password' => 'long-enough-password',
+            'password_confirmation' => 'long-enough-password',
+            'plan' => 'pro',
+        ])->assertRedirect('/dashboard');
+
+        $this->post('/logout')->assertRedirect('/');
+
+        $this->post('/register', [
+            'name' => 'Third User',
+            'email' => 'third@example.com',
+            'password' => 'long-enough-password',
+            'password_confirmation' => 'long-enough-password',
+            'plan' => 'personal',
+        ])->assertRedirect('/dashboard');
+
+        $this->post('/logout')->assertRedirect('/');
+
+        $this->post('/register', [
+            'name' => 'Fourth User',
+            'email' => 'fourth@example.com',
+            'password' => 'long-enough-password',
+            'password_confirmation' => 'long-enough-password',
+            'plan' => 'personal',
+        ])->assertRedirect('/subscription?plan=personal');
+
+        $first = User::where('email', 'first@example.com')->firstOrFail();
+        $second = User::where('email', 'second@example.com')->firstOrFail();
+        $third = User::where('email', 'third@example.com')->firstOrFail();
+
+        $this->assertSame($dayTier->id, $first->subscription_package_id);
+        $this->assertEqualsWithDelta(now()->addDays(7)->timestamp, $first->trial_ends_at->timestamp, 5);
+        $this->assertSame($monthTier->id, $second->subscription_package_id);
+        $this->assertEqualsWithDelta(now()->addMonthsNoOverflow(2)->timestamp, $second->trial_ends_at->timestamp, 5);
+        $this->assertSame($unlimitedTier->id, $third->subscription_package_id);
+        $this->assertNull($third->trial_ends_at);
+        $this->assertTrue($third->onAppTrial());
+        $this->assertNull(User::where('email', 'fourth@example.com')->firstOrFail()->subscription_package_id);
     }
 
     public function test_a_user_can_log_in_and_view_the_dashboard(): void
@@ -64,13 +163,13 @@ class SiteFlowTest extends TestCase
             );
     }
 
-    public function test_a_visitor_can_join_the_update_list(): void
+    public function test_the_faq_page_is_public(): void
     {
-        $this->post('/updates', ['email' => 'news@example.com'])
-            ->assertRedirect()
-            ->assertSessionHas('subscribed');
+        $this->get('/faqs')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Faqs'));
 
-        $this->assertTrue(UpdateSubscriber::where('email', 'news@example.com')->exists());
+        $this->post('/updates')->assertNotFound();
     }
 
     public function test_dashboard_requires_authentication(): void
@@ -277,7 +376,7 @@ class SiteFlowTest extends TestCase
             'plan' => 'personal',
         ]);
 
-        $response->assertRedirect('/subscription?plan=personal')->assertSessionHas('plain_api_key');
+        $response->assertRedirect('/dashboard')->assertSessionHas('plain_api_key');
         $plainText = session('plain_api_key');
 
         $this->assertStringContainsString('|lidup_', $plainText);
@@ -374,6 +473,48 @@ class SiteFlowTest extends TestCase
             ]);
 
         $this->assertDatabaseCount('app_activations', 0);
+    }
+
+    public function test_an_activation_key_can_validate_an_active_account_trial(): void
+    {
+        $user = User::factory()->create([
+            'trial_cohort_position' => 1,
+            'trial_plan' => 'pro',
+            'trial_started_at' => now()->subDay(),
+            'trial_ends_at' => now()->addDays(6),
+        ]);
+        $plainText = app(ApiKeyService::class)->create($user)['plain_text'];
+
+        $this->withToken($plainText)
+            ->getJson('/api/v1/license/validate')
+            ->assertOk()
+            ->assertJson([
+                'valid' => true,
+                'plan' => 'pro',
+                'subscription_status' => 'trialing',
+                'entitlement_source' => 'trial',
+                'device_limit' => 3,
+            ]);
+    }
+
+    public function test_license_validation_rejects_an_expired_account_trial(): void
+    {
+        $user = User::factory()->create([
+            'trial_cohort_position' => 1,
+            'trial_plan' => 'personal',
+            'trial_started_at' => now()->subDays(8),
+            'trial_ends_at' => now()->subDay(),
+        ]);
+        $plainText = app(ApiKeyService::class)->create($user)['plain_text'];
+
+        $this->withToken($plainText)
+            ->getJson('/api/v1/license/validate')
+            ->assertForbidden()
+            ->assertJson([
+                'valid' => false,
+                'reason' => 'subscription_inactive',
+                'subscription_status' => 'trial_expired',
+            ]);
     }
 
     public function test_license_validation_rejects_invalid_and_unsubscribed_keys(): void

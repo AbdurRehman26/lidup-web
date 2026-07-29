@@ -5,12 +5,16 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeviceController;
 use App\Http\Controllers\DownloadController;
-use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\SubscriptionController;
+use App\Services\TrialService;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/', fn () => Inertia::render('Home'))->name('home');
+Route::get('/', fn (TrialService $trials) => Inertia::render('Home', [
+    'trialOffer' => $trials->present($trials->currentOffer()),
+    'packages' => $trials->publicPackages()->map(fn ($package) => $trials->present($package))->values(),
+]))->name('home');
+Route::get('/faqs', fn () => Inertia::render('Faqs'))->name('faqs');
 Route::get('/download', [DownloadController::class, 'index'])->name('download');
 Route::get('/download/latest', [DownloadController::class, 'latest'])
     ->middleware('throttle:30,1')
@@ -22,10 +26,6 @@ Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login']);
 });
-
-Route::post('/updates', [NewsletterController::class, 'store'])
-    ->middleware('throttle:6,1')
-    ->name('updates.store');
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');

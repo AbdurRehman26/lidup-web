@@ -3,6 +3,7 @@
 namespace App\Listeners;
 
 use App\Models\Subscription;
+use App\Models\SubscriptionPackage;
 use App\Services\SubscriptionService;
 
 class SyncPaddleSubscription
@@ -16,7 +17,11 @@ class SyncPaddleSubscription
         }
 
         $priceId = $event->subscription->items->first()?->price_id;
-        $plan = collect(config('plans'))
+        $package = SubscriptionPackage::query()
+            ->where('is_paid', true)
+            ->where('paddle_price_id', $priceId)
+            ->first();
+        $plan = $package?->plan ?? collect(config('plans'))
             ->search(fn (array $plan): bool => filled($plan['paddle_price_id'])
                 && hash_equals((string) $plan['paddle_price_id'], (string) $priceId));
 

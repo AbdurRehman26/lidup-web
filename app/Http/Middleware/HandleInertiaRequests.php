@@ -17,7 +17,6 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user()?->only('id', 'name', 'email', 'created_at'),
             ],
             'flash' => [
-                'subscribed' => fn () => $request->session()->get('subscribed'),
                 'subscription_updated' => fn () => $request->session()->get('subscription_updated'),
                 'plain_api_key' => fn () => $request->session()->get('plain_api_key'),
                 'api_key_message' => fn () => $request->session()->get('api_key_message'),

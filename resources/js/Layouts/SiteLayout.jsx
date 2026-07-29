@@ -1,10 +1,20 @@
 import { Link, router, usePage } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
 import Brand from '../Components/Brand';
 
 export default function SiteLayout({ children }) {
     const { auth } = usePage().props;
+    const [theme, setTheme] = useState(() => document.documentElement.dataset.theme || 'light');
 
     const logout = () => router.post('/logout');
+    const toggleTheme = () => setTheme((current) => current === 'dark' ? 'light' : 'dark');
+
+    useEffect(() => {
+        document.documentElement.dataset.theme = theme;
+        localStorage.setItem('lidup-theme', theme);
+        document.querySelector('meta[name="theme-color"]')
+            ?.setAttribute('content', theme === 'dark' ? '#100d17' : '#f8f6ff');
+    }, [theme]);
 
     return (
         <>
@@ -15,6 +25,10 @@ export default function SiteLayout({ children }) {
                     <Link href="/download">Download</Link>
                     <Link href="/#how-it-works">How it works</Link>
                     <Link href="/#pricing">Pricing</Link>
+                    <Link href="/faqs">FAQs</Link>
+                    <button className="theme-toggle" type="button" onClick={toggleTheme} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`} aria-pressed={theme === 'dark'}>
+                        <span className="theme-toggle-track" aria-hidden="true"><i className="theme-sun">☀</i><i className="theme-moon">☾</i><b /></span>
+                    </button>
                     {auth.user ? (
                         <>
                             <Link href="/dashboard">Dashboard</Link>
@@ -33,8 +47,8 @@ export default function SiteLayout({ children }) {
 
             <footer className="site-footer">
                 <Brand />
-                <p>Made for work that takes longer than your attention span.</p>
-                <p className="mono">© {new Date().getFullYear()} LidUp</p>
+                <p>Lidup your Mac.</p>
+                <div className="footer-links"><Link href="/faqs">FAQs</Link><p className="mono">© {new Date().getFullYear()} LidUp</p></div>
             </footer>
         </>
     );

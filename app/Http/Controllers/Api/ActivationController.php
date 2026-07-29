@@ -35,8 +35,9 @@ class ActivationController extends Controller
         }
 
         $subscription = $user->appSubscription;
+        $plan = $user->entitlementPlan();
 
-        if (! $subscription || ! $subscription->isEntitled()) {
+        if (! $user->hasAppEntitlement()) {
             return response()->json([
                 'valid' => false,
                 'reason' => 'subscription_inactive',
@@ -44,7 +45,9 @@ class ActivationController extends Controller
             ], 403);
         }
 
-        $deviceLimit = (int) data_get(config('plans'), "{$subscription->plan}.devices", 1);
+        $deviceLimit = $user->onAppTrial() && $user->subscriptionPackage
+            ? $user->subscriptionPackage->device_limit
+            : (int) data_get(config('plans'), "{$plan}.devices", 1);
         $existing = $user->appActivations()->where('device_id', $validated['device_id'])->first();
         $activeDevices = $user->appActivations()->active()->count();
 
@@ -74,9 +77,10 @@ class ActivationController extends Controller
         return response()->json([
             'valid' => true,
             'activation_id' => $activation->id,
-            'plan' => $subscription->plan,
-            'subscription_status' => $subscription->status,
-            'entitled_until' => ($subscription->ends_at ?? $subscription->trial_ends_at)?->toIso8601String(),
+            'plan' => $plan,
+            'subscription_status' => $user->entitlementStatus(),
+            'entitlement_source' => $subscription?->isEntitled() === true ? 'subscription' : 'trial',
+            'entitled_until' => $user->entitlementEndsAt()?->toIso8601String(),
             'device_limit' => $deviceLimit,
             'active_devices' => $user->appActivations()->active()->count(),
         ]);

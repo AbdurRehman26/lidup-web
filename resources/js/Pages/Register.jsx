@@ -1,7 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import SiteLayout from '../Layouts/SiteLayout';
 
-export default function Register({ plans, selectedPlan }) {
+export default function Register({ plans, selectedPlan, trialOffer }) {
     const form = useForm({ name: '', email: '', password: '', password_confirmation: '', plan: selectedPlan });
 
     const submit = (event) => {
@@ -17,7 +17,7 @@ export default function Register({ plans, selectedPlan }) {
         <SiteLayout>
             <Head title="Join the private beta" />
             <section className="auth-shell">
-                <div className="auth-copy"><p className="eyebrow">Private beta</p><h1>Close the lid.<br /><em>Come back to done.</em></h1><p>Create your account and start a 14-day early-access trial. No credit card required.</p></div>
+                <div className="auth-copy"><p className="eyebrow">{trialOffer?.name ?? 'Private beta'}</p><h1>Close the lid.<br /><em>Come back to done.</em></h1><p>{trialOffer ? `Create your account and receive ${trialOffer.duration_label.toLowerCase()} of early access. No credit card required.` : 'Create your account and choose the plan that fits your Macs.'}</p></div>
                 <form onSubmit={submit} className="auth-card">
                     <h2>Create your account</h2>
                     <div className="plan-picker" aria-label="Choose a plan">
@@ -32,7 +32,7 @@ export default function Register({ plans, selectedPlan }) {
                     <Field label="Password" type="password" value={form.data.password} onChange={(value) => form.setData('password', value)} autoComplete="new-password" />
                     <Field label="Confirm password" type="password" value={form.data.password_confirmation} onChange={(value) => form.setData('password_confirmation', value)} autoComplete="new-password" />
                     {firstError && <p className="form-error">{firstError}</p>}
-                    <button className="button button-wide" type="submit" disabled={form.processing}>Start my trial <span>→</span></button>
+                    <button className="button button-wide" type="submit" disabled={form.processing}>{trialOffer ? 'Start my trial' : 'Create my account'} <span>→</span></button>
                     <p>Already have an account? <Link href="/login">Log in</Link></p>
                 </form>
             </section>

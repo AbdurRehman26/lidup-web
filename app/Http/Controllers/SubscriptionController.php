@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\SubscriptionPackage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,20 +15,21 @@ class SubscriptionController extends Controller
 {
     public function show(Request $request): Response
     {
+        $plans = $this->paidPlans();
+
         return Inertia::render('Subscription', [
             'subscription' => $request->user()->appSubscription,
-            'plans' => config('plans'),
+            'plans' => $plans,
             'billingConfigured' => filled(config('cashier.client_side_token'))
-                && collect(config('plans'))->every(fn (array $plan): bool => filled($plan['paddle_price_id'])),
+                && collect($plans)->every(fn (array $plan): bool => filled($plan['paddle_price_id'])),
         ]);
     }
 
     public function checkout(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'plan' => ['required', Rule::in(array_keys(config('plans')))],
-        ]);
-        $priceId = config("plans.{$validated['plan']}.paddle_price_id");
+        $plans = $this->paidPlans();
+        $validated = $request->validate(['plan' => ['required', Rule::in(array_keys($plans))]]);
+        $priceId = $plans[$validated['plan']]['paddle_price_id'];
 
         if (! $priceId || ! config('cashier.client_side_token')) {
             throw ValidationException::withMessages([
@@ -52,11 +54,10 @@ class SubscriptionController extends Controller
 
     public function update(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'plan' => ['required', Rule::in(array_keys(config('plans')))],
-        ]);
+        $plans = $this->paidPlans();
+        $validated = $request->validate(['plan' => ['required', Rule::in(array_keys($plans))]]);
         $subscription = $request->user()->subscription('default');
-        $priceId = config("plans.{$validated['plan']}.paddle_price_id");
+        $priceId = $plans[$validated['plan']]['paddle_price_id'];
 
         if (! $subscription || ! $subscription->paddle_id || ! $subscription->valid()) {
             return back()->withErrors(['plan' => 'Start a Paddle subscription before changing plans.']);
@@ -82,5 +83,30 @@ class SubscriptionController extends Controller
         }
 
         return back()->with('subscription_updated', 'Your subscription will end after the current billing period.');
+    }
+
+    private function paidPlans(): array
+    {
+        $packages = SubscriptionPackage::query()
+            ->active()
+            ->visible()
+            ->where('is_paid', true)
+            ->orderBy('sort_order')
+            ->get();
+
+        if ($packages->isEmpty()) {
+            return config('plans');
+        }
+
+        return $packages->mapWithKeys(fn (SubscriptionPackage $package): array => [
+            $package->slug => [
+                'name' => $package->name,
+                'price' => $package->price,
+                'interval' => 'month',
+                'devices' => $package->device_limit,
+                'paddle_price_id' => $package->paddle_price_id,
+                'plan' => $package->plan,
+            ],
+        ])->all();
     }
 }

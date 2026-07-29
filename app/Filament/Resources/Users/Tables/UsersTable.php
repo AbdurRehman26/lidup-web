@@ -32,6 +32,11 @@ class UsersTable
                         'personal' => 'info',
                         default => 'gray',
                     }),
+                TextColumn::make('subscriptionPackage.name')
+                    ->label('Package')
+                    ->badge()
+                    ->placeholder('No package')
+                    ->color('primary'),
                 TextColumn::make('appSubscription.status')
                     ->label('Subscription')
                     ->badge()
@@ -41,6 +46,20 @@ class UsersTable
                         'active', 'trialing' => 'success',
                         'past_due' => 'warning',
                         'canceled', 'expired' => 'danger',
+                        default => 'gray',
+                    }),
+                TextColumn::make('trial_ends_at')
+                    ->label('Free trial')
+                    ->badge()
+                    ->state(fn (User $record): string => match (true) {
+                        $record->onAppTrial() => 'Active',
+                        $record->trial_ends_at !== null => 'Expired',
+                        default => 'Not granted',
+                    })
+                    ->description(fn (User $record): ?string => $record->trial_ends_at?->format('M j, Y'))
+                    ->color(fn (string $state): string => match ($state) {
+                        'Active' => 'success',
+                        'Expired' => 'danger',
                         default => 'gray',
                     }),
                 IconColumn::make('tokens_exists')
