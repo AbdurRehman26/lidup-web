@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Models\Release;
 use App\Models\SubscriptionPackage;
+use App\Models\TaskCompletionEvent;
 use App\Models\User;
 use App\Notifications\ActivationKeyIssued;
+use App\Notifications\TaskCompleted;
 use App\Services\ApiKeyService;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -188,10 +190,58 @@ class SiteFlowTest extends TestCase
         $this->assertArrayHasKey('/license/validate', $document['paths']);
         $this->assertArrayHasKey('/activation/verify', $document['paths']);
         $this->assertArrayHasKey('/activation/{deviceId}', $document['paths']);
+        $this->assertArrayHasKey('/webhooks/task-completed', $document['paths']);
 
         $this->get('/api/documentation')
             ->assertOk()
             ->assertSee('LidUp API');
+    }
+
+    public function test_a_task_completion_webhook_emails_the_user_only_once(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create();
+        $plainText = app(ApiKeyService::class)->create($user)['plain_text'];
+        $payload = [
+            'event_id' => 'evt_task_finished_123',
+            'task_id' => 'codex-task-184',
+            'status' => 'completed',
+            'summary' => 'Production build and test suite completed successfully.',
+            'duration_seconds' => 754,
+            'device_id' => 'work-macbook',
+            'device_name' => 'Work MacBook Pro',
+            'completed_at' => now()->toIso8601String(),
+            'details' => [
+                'agent' => 'Codex',
+                'tests' => 25,
+            ],
+        ];
+
+        $this->withToken($plainText)
+            ->postJson('/api/v1/webhooks/task-completed', $payload)
+            ->assertAccepted()
+            ->assertJson([
+                'accepted' => true,
+                'duplicate' => false,
+                'event_id' => 'evt_task_finished_123',
+            ]);
+
+        $this->withToken($plainText)
+            ->postJson('/api/v1/webhooks/task-completed', $payload)
+            ->assertOk()
+            ->assertJson([
+                'accepted' => true,
+                'duplicate' => true,
+            ]);
+
+        $event = TaskCompletionEvent::where('event_id', 'evt_task_finished_123')->firstOrFail();
+
+        $this->assertSame($user->id, $event->user_id);
+        $this->assertSame(754, $event->duration_seconds);
+        $this->assertSame('Codex', $event->details['agent']);
+        $this->assertNotNull($event->notification_sent_at);
+        Notification::assertSentToTimes($user, TaskCompleted::class, 1);
     }
 
     public function test_dashboard_requires_authentication(): void

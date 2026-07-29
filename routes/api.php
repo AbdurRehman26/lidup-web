@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\ActivationController;
 use App\Http\Controllers\Api\LicenseController;
+use App\Http\Controllers\Api\TaskCompletionWebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')
@@ -10,4 +11,5 @@ Route::prefix('v1')
         Route::match(['get', 'post'], '/license/validate', LicenseController::class);
         Route::post('/activation/verify', [ActivationController::class, 'verify']);
         Route::delete('/activation/{deviceId}', [ActivationController::class, 'deactivate']);
+        Route::post('/webhooks/task-completed', TaskCompletionWebhookController::class);
     });

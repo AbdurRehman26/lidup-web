@@ -49,6 +49,11 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(AppActivation::class);
     }
 
+    public function taskCompletionEvents(): HasMany
+    {
+        return $this->hasMany(TaskCompletionEvent::class);
+    }
+
     public function canAccessPanel(Panel $panel): bool
     {
         return $this->is_admin;

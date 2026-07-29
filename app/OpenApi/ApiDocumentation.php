@@ -28,4 +28,8 @@ use OpenApi\Attributes as OA;
     name: 'Activation',
     description: 'Mac device activation management',
 )]
+#[OA\Tag(
+    name: 'Tasks',
+    description: 'Task completion notifications',
+)]
 class ApiDocumentation {}

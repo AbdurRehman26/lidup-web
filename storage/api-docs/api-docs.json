@@ -274,6 +274,107 @@
                     }
                 ]
             }
+        },
+        "/webhooks/task-completed": {
+            "post": {
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Report a completed task",
+                "description": "Stores a terminal task event and emails the owner of the activation key. Reusing an event_id is idempotent and never sends a duplicate email.",
+                "operationId": "taskCompletedWebhook",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "event_id",
+                                    "status",
+                                    "summary"
+                                ],
+                                "properties": {
+                                    "event_id": {
+                                        "type": "string",
+                                        "example": "evt_01JZ8F7KQJ3N4D6M8P2R"
+                                    },
+                                    "task_id": {
+                                        "type": "string",
+                                        "example": "codex-task-184",
+                                        "nullable": true
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "example": "completed",
+                                        "enum": [
+                                            "completed",
+                                            "failed",
+                                            "cancelled"
+                                        ]
+                                    },
+                                    "summary": {
+                                        "type": "string",
+                                        "example": "Production build and test suite completed successfully."
+                                    },
+                                    "duration_seconds": {
+                                        "type": "integer",
+                                        "example": 754,
+                                        "nullable": true,
+                                        "minimum": 0
+                                    },
+                                    "device_id": {
+                                        "type": "string",
+                                        "example": "macbook-pro-hardware-id",
+                                        "nullable": true
+                                    },
+                                    "device_name": {
+                                        "type": "string",
+                                        "example": "Work MacBook Pro",
+                                        "nullable": true
+                                    },
+                                    "completed_at": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "nullable": true
+                                    },
+                                    "details": {
+                                        "type": "object",
+                                        "example": {
+                                            "agent": "Codex",
+                                            "tests": 25,
+                                            "branch": "main"
+                                        },
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "The event was stored and the email was sent."
+                    },
+                    "200": {
+                        "description": "The event was already processed; no duplicate email was sent."
+                    },
+                    "401": {
+                        "description": "The activation key is missing or invalid."
+                    },
+                    "403": {
+                        "description": "The activation key cannot submit task events."
+                    },
+                    "422": {
+                        "description": "The payload is invalid."
+                    }
+                },
+                "security": [
+                    {
+                        "licenseKey": []
+                    }
+                ]
+            }
         }
     },
     "components": {
@@ -294,6 +395,10 @@
         {
             "name": "Activation",
             "description": "Mac device activation management"
+        },
+        {
+            "name": "Tasks",
+            "description": "Task completion notifications"
         }
     ]
 }

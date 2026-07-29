@@ -17,6 +17,7 @@ class ApiKeyService
             $created = $user->createToken($name, [
                 'activation:verify',
                 'activation:deactivate',
+                'tasks:complete',
             ]);
 
             return ['key' => $created->accessToken, 'plain_text' => $created->plainTextToken];
