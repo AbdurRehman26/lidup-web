@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Notifications\ActivationKeyIssued;
 use App\Notifications\TaskCompleted;
 use App\Services\ApiKeyService;
+use Database\Seeders\AdminUserSeeder;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
@@ -22,6 +23,29 @@ use Tests\TestCase;
 class SiteFlowTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_the_default_admin_seeder_assigns_one_key_and_unlimited_access_without_duplicates(): void
+    {
+        config([
+            'admin.default_user.name' => 'Syed Abdur Rehman',
+            'admin.default_user.email' => 'sydabdrehman@gmail.com',
+            'admin.default_user.password' => 'sydabdrehman@gmail.com',
+        ]);
+
+        $this->seed(AdminUserSeeder::class);
+        $this->seed(AdminUserSeeder::class);
+
+        $user = User::where('email', 'sydabdrehman@gmail.com')->firstOrFail();
+
+        $this->assertTrue($user->is_admin);
+        $this->assertSame('admin-unlimited', $user->subscriptionPackage->slug);
+        $this->assertSame('unlimited', $user->subscriptionPackage->duration_unit);
+        $this->assertNull($user->trial_ends_at);
+        $this->assertTrue($user->onAppTrial());
+        $this->assertSame(1, $user->tokens()->count());
+        $this->assertDatabaseCount('users', 1);
+        $this->assertDatabaseCount('subscription_packages', 4);
+    }
 
     public function test_landing_page_is_available(): void
     {
