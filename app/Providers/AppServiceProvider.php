@@ -29,6 +29,7 @@ class AppServiceProvider extends ServiceProvider
     {
         config([
             'l5-swagger.documentations.default.api.title' => 'LidUp API',
+            'l5-swagger.documentations.default.paths.use_absolute_path' => false,
             'l5-swagger.defaults.generate_always' => app()->isLocal(),
         ]);
 
