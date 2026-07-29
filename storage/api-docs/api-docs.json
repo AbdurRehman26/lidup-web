@@ -1,0 +1,299 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "LidUp API",
+        "description": "Validate LidUp license keys and manage Mac device activations.",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "/api/v1",
+            "description": "Current LidUp application"
+        }
+    ],
+    "paths": {
+        "/activation/verify": {
+            "post": {
+                "tags": [
+                    "Activation"
+                ],
+                "summary": "Activate or verify a Mac",
+                "operationId": "verifyActivation",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "device_id"
+                                ],
+                                "properties": {
+                                    "device_id": {
+                                        "type": "string",
+                                        "example": "macbook-pro-hardware-id",
+                                        "maxLength": 191
+                                    },
+                                    "device_name": {
+                                        "type": "string",
+                                        "example": "Work MacBook Pro",
+                                        "nullable": true,
+                                        "maxLength": 120
+                                    },
+                                    "app_version": {
+                                        "type": "string",
+                                        "example": "1.2.0",
+                                        "nullable": true,
+                                        "maxLength": 40
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "The Mac is activated and the entitlement is valid.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "valid": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "activation_id": {
+                                            "type": "integer",
+                                            "example": 42
+                                        },
+                                        "plan": {
+                                            "type": "string",
+                                            "example": "personal"
+                                        },
+                                        "subscription_status": {
+                                            "type": "string",
+                                            "example": "active"
+                                        },
+                                        "entitlement_source": {
+                                            "type": "string",
+                                            "enum": [
+                                                "subscription",
+                                                "trial"
+                                            ]
+                                        },
+                                        "entitled_until": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "nullable": true
+                                        },
+                                        "device_limit": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "active_devices": {
+                                            "type": "integer",
+                                            "example": 1
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "The activation key is missing or invalid."
+                    },
+                    "403": {
+                        "description": "The entitlement is inactive or the key lacks permission."
+                    },
+                    "409": {
+                        "description": "The package device limit has been reached."
+                    },
+                    "422": {
+                        "description": "The device details are invalid."
+                    }
+                },
+                "security": [
+                    {
+                        "licenseKey": []
+                    }
+                ]
+            }
+        },
+        "/activation/{deviceId}": {
+            "delete": {
+                "tags": [
+                    "Activation"
+                ],
+                "summary": "Deactivate a Mac",
+                "operationId": "deactivateDevice",
+                "parameters": [
+                    {
+                        "name": "deviceId",
+                        "in": "path",
+                        "description": "The device identifier originally used during activation.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "macbook-pro-hardware-id"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The Mac was deactivated.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "deactivated": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "device_id": {
+                                            "type": "string",
+                                            "example": "macbook-pro-hardware-id"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "The activation key is missing or invalid."
+                    },
+                    "403": {
+                        "description": "The key cannot deactivate devices."
+                    },
+                    "404": {
+                        "description": "No active device matches the identifier."
+                    }
+                },
+                "security": [
+                    {
+                        "licenseKey": []
+                    }
+                ]
+            }
+        },
+        "/license/validate": {
+            "get": {
+                "tags": [
+                    "License"
+                ],
+                "summary": "Validate a license key",
+                "description": "Returns the current paid or trial entitlement without activating a device.",
+                "operationId": "validateLicense",
+                "responses": {
+                    "200": {
+                        "description": "The license is active.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "valid": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "reason": {
+                                            "type": "string",
+                                            "example": null,
+                                            "nullable": true
+                                        },
+                                        "plan": {
+                                            "type": "string",
+                                            "example": "personal",
+                                            "nullable": true
+                                        },
+                                        "subscription_status": {
+                                            "type": "string",
+                                            "example": "trialing"
+                                        },
+                                        "entitlement_source": {
+                                            "type": "string",
+                                            "example": "trial",
+                                            "enum": [
+                                                "subscription",
+                                                "trial"
+                                            ]
+                                        },
+                                        "entitled_until": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "nullable": true
+                                        },
+                                        "device_limit": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "active_devices": {
+                                            "type": "integer",
+                                            "example": 0
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "The activation key is missing or invalid."
+                    },
+                    "403": {
+                        "description": "The key lacks permission or its entitlement is inactive."
+                    }
+                },
+                "security": [
+                    {
+                        "licenseKey": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "License"
+                ],
+                "summary": "Validate a license key using POST",
+                "description": "POST-compatible version of license validation for native clients.",
+                "operationId": "validateLicensePost",
+                "responses": {
+                    "200": {
+                        "description": "The license is active."
+                    },
+                    "401": {
+                        "description": "The activation key is missing or invalid."
+                    },
+                    "403": {
+                        "description": "The key lacks permission or its entitlement is inactive."
+                    }
+                },
+                "security": [
+                    {
+                        "licenseKey": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "licenseKey": {
+                "type": "http",
+                "description": "Use the complete activation key generated for the user.",
+                "bearerFormat": "LidUp activation key",
+                "scheme": "bearer"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "License",
+            "description": "License entitlement validation"
+        },
+        {
+            "name": "Activation",
+            "description": "Mac device activation management"
+        }
+    ]
+}
