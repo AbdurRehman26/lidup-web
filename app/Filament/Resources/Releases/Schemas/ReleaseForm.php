@@ -26,11 +26,9 @@ class ReleaseForm
                             ->label('macOS installer')
                             ->disk('local')
                             ->directory('releases')
-                            ->acceptedFileTypes([
-                                'application/x-apple-diskimage',
-                                'application/octet-stream',
-                                'application/zip',
-                                'application/x-xar',
+                            ->acceptedFileTypes(config('uploads.release_mime_types'))
+                            ->rules([
+                                'extensions:'.implode(',', config('uploads.release_extensions')),
                             ])
                             ->maxSize(config('uploads.release_max_kb'))
                             ->downloadable()

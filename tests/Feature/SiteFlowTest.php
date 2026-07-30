@@ -423,6 +423,8 @@ class SiteFlowTest extends TestCase
         $this->assertSame(524288, config('uploads.release_max_kb'));
         $this->assertContains('max:524288', config('livewire.temporary_file_upload.rules'));
         $this->assertSame(30, config('livewire.temporary_file_upload.max_upload_time'));
+        $this->assertContains('application/zlib', config('uploads.release_mime_types'));
+        $this->assertContains('dmg', config('uploads.release_extensions'));
     }
 
     public function test_a_super_admin_can_view_paid_subscriptions(): void
