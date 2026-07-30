@@ -32,10 +32,10 @@ class ReleaseForm
                                 'application/zip',
                                 'application/x-xar',
                             ])
-                            ->maxSize(524288)
+                            ->maxSize(config('uploads.release_max_kb'))
                             ->downloadable()
                             ->required()
-                            ->helperText('DMG, PKG, or ZIP. Maximum file size: 512 MB.'),
+                            ->helperText('DMG, PKG, or ZIP. Maximum file size: '.config('uploads.release_max_mb').' MB.'),
                     ]),
                 Section::make('Release details')
                     ->description('These details appear alongside the public download.')

@@ -418,6 +418,13 @@ class SiteFlowTest extends TestCase
             ->assertSee('Make this the latest build');
     }
 
+    public function test_release_upload_and_livewire_temporary_limits_are_aligned(): void
+    {
+        $this->assertSame(524288, config('uploads.release_max_kb'));
+        $this->assertContains('max:524288', config('livewire.temporary_file_upload.rules'));
+        $this->assertSame(30, config('livewire.temporary_file_upload.max_upload_time'));
+    }
+
     public function test_a_super_admin_can_view_paid_subscriptions(): void
     {
         $admin = User::factory()->create();
