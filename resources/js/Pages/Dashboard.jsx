@@ -67,6 +67,38 @@ export default function Dashboard({ subscription, trial, plans, apiKey, activati
                     <p>Choose your plan, manage your activation, and keep every Mac up to date.</p>
                 </header>
 
+                {trial?.package && (
+                    <section className="assigned-package" aria-label="Assigned subscription package">
+                        <div className="assigned-package-mark" aria-hidden="true">
+                            {trial.package.duration === 'Unlimited' ? '∞' : <CheckIcon />}
+                        </div>
+                        <div className="assigned-package-copy">
+                            <span>Assigned to your account</span>
+                            <h2>{trial.package.name}</h2>
+                            <p>{trial.package.description || `${trial.package.duration} access to LidUp.`}</p>
+                        </div>
+                        <dl>
+                            <div>
+                                <dt>Access</dt>
+                                <dd>{trial.package.duration}</dd>
+                            </div>
+                            <div>
+                                <dt>Expires</dt>
+                                <dd>{trial.ends_at ? formatDate(trial.ends_at) : 'Never'}</dd>
+                            </div>
+                            <div>
+                                <dt>Macs</dt>
+                                <dd>{trial.package.device_limit}</dd>
+                            </div>
+                        </dl>
+                        <div className="assigned-package-badges">
+                            <span>{trial.package.is_paid ? 'Paid package' : 'Included'}</span>
+                            {!trial.package.is_visible && <span>Private package</span>}
+                            {!trial.package.is_active && <span>Reserved access</span>}
+                        </div>
+                    </section>
+                )}
+
                 <section className="account-plans" aria-label="Available plans">
                     {tiers.map((tier) => {
                         const config = plans[tier.key];

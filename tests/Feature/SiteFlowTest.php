@@ -190,6 +190,30 @@ class SiteFlowTest extends TestCase
             );
     }
 
+    public function test_dashboard_exposes_an_assigned_hidden_unlimited_package(): void
+    {
+        $package = SubscriptionPackage::where('slug', 'admin-unlimited')->firstOrFail();
+        $user = User::factory()->create([
+            'subscription_package_id' => $package->id,
+            'trial_plan' => 'pro',
+            'trial_started_at' => now(),
+            'trial_ends_at' => null,
+        ]);
+
+        $this->actingAs($user)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Dashboard')
+                ->where('trial.active', true)
+                ->where('trial.package.name', 'Admin Unlimited')
+                ->where('trial.package.duration', 'Unlimited')
+                ->where('trial.package.is_active', false)
+                ->where('trial.package.is_visible', false)
+                ->where('trial.ends_at', null)
+            );
+    }
+
     public function test_the_faq_page_is_public(): void
     {
         $this->get('/faqs')

@@ -41,8 +41,12 @@ class DashboardController extends Controller
                 'cohort_position' => $request->user()->trial_cohort_position,
                 'package' => $request->user()->subscriptionPackage ? [
                     'name' => $request->user()->subscriptionPackage->name,
+                    'description' => $request->user()->subscriptionPackage->description,
                     'duration' => $request->user()->subscriptionPackage->durationLabel(),
                     'device_limit' => $request->user()->subscriptionPackage->device_limit,
+                    'is_paid' => $request->user()->subscriptionPackage->is_paid,
+                    'is_active' => $request->user()->subscriptionPackage->is_active,
+                    'is_visible' => $request->user()->subscriptionPackage->is_visible,
                 ] : null,
             ],
             'plans' => config('plans'),
