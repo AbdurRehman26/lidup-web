@@ -13,6 +13,7 @@ use App\Services\ApiKeyService;
 use Database\Seeders\AdminUserSeeder;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -219,6 +220,17 @@ class SiteFlowTest extends TestCase
         $this->get('/api/documentation')
             ->assertOk()
             ->assertSee('LidUp API');
+    }
+
+    public function test_swagger_json_is_generated_when_the_server_file_is_missing(): void
+    {
+        File::delete(storage_path('api-docs/api-docs.json'));
+
+        $this->get('/docs?api-docs.json')
+            ->assertOk()
+            ->assertJsonPath('info.title', 'LidUp API');
+
+        $this->assertFileExists(storage_path('api-docs/api-docs.json'));
     }
 
     public function test_a_task_completion_webhook_emails_the_user_only_once(): void
