@@ -3,16 +3,22 @@
 return [
     'personal' => [
         'name' => 'Personal',
-        'price' => 4,
-        'interval' => 'month',
         'devices' => 1,
         'paddle_price_id' => env('PADDLE_PRICE_PERSONAL'),
     ],
     'pro' => [
         'name' => 'Pro',
-        'price' => 8,
-        'interval' => 'month',
         'devices' => 3,
         'paddle_price_id' => env('PADDLE_PRICE_PRO'),
+    ],
+    'personal_yearly' => [
+        'name' => 'Personal Yearly',
+        'devices' => 1,
+        'paddle_price_id' => env('PADDLE_PRICE_PERSONAL_YEARLY'),
+    ],
+    'pro_yearly' => [
+        'name' => 'Pro Yearly',
+        'devices' => 3,
+        'paddle_price_id' => env('PADDLE_PRICE_PRO_YEARLY'),
     ],
 ];

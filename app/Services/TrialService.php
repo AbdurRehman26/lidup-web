@@ -84,6 +84,8 @@ class TrialService
             'user_limit' => $package->user_limit,
             'users_count' => $package->users_count ?? $package->users()->count(),
             'duration_label' => $package->durationLabel(),
+            'duration_unit' => $package->duration_unit,
+            'duration_value' => $package->duration_value,
             'is_paid' => $package->is_paid,
             'price' => $package->price,
             'currency' => $package->currency,

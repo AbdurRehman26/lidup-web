@@ -45,7 +45,7 @@ class SiteFlowTest extends TestCase
         $this->assertTrue($user->onAppTrial());
         $this->assertSame(1, $user->tokens()->count());
         $this->assertDatabaseCount('users', 1);
-        $this->assertDatabaseCount('subscription_packages', 4);
+        $this->assertDatabaseCount('subscription_packages', 8);
     }
 
     public function test_landing_page_is_available(): void
@@ -55,6 +55,37 @@ class SiteFlowTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Home')
                 ->where('auth.user', null)
+            );
+    }
+
+    public function test_filament_package_prices_are_the_source_for_public_and_checkout_screens(): void
+    {
+        SubscriptionPackage::where('slug', 'personal')->update([
+            'price' => 12.50,
+            'currency' => 'GBP',
+        ]);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('paidPlans.personal.price', '12.50')
+                ->where('paidPlans.personal.currency', 'GBP')
+            );
+
+        $this->actingAs(User::factory()->create())
+            ->get('/subscription')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('plans.personal.price', '12.50')
+                ->where('plans.personal.currency', 'GBP')
+            );
+
+        $this->get('/')
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('paidPlans.personal-yearly.price', '40.00')
+                ->where('paidPlans.personal-yearly.billing_interval', 'year')
+                ->where('paidPlans.pro-yearly.price', '80.00')
+                ->where('paidPlans.pro-yearly.billing_interval', 'year')
             );
     }
 
@@ -80,7 +111,7 @@ class SiteFlowTest extends TestCase
 
     public function test_users_advance_through_day_month_and_unlimited_package_tiers(): void
     {
-        SubscriptionPackage::query()->update(['is_active' => false]);
+        SubscriptionPackage::query()->where('is_paid', false)->update(['is_active' => false]);
         $dayTier = SubscriptionPackage::create([
             'name' => 'Day tier',
             'slug' => 'test-day-tier',
@@ -328,10 +359,8 @@ class SiteFlowTest extends TestCase
             'name' => $user->name,
             'email' => $user->email,
         ]);
-        config([
-            'cashier.client_side_token' => 'test_token',
-            'plans.personal.paddle_price_id' => 'pri_personal_test',
-        ]);
+        config(['cashier.client_side_token' => 'test_token']);
+        SubscriptionPackage::where('slug', 'personal')->update(['paddle_price_id' => 'pri_personal_test']);
 
         $this->actingAs($user)
             ->postJson('/subscription/checkout', ['plan' => 'personal'])
@@ -348,7 +377,7 @@ class SiteFlowTest extends TestCase
             'plan' => 'personal',
             'status' => 'trialing',
         ]);
-        config(['plans.pro.paddle_price_id' => 'pri_pro_test']);
+        SubscriptionPackage::where('slug', 'pro')->update(['paddle_price_id' => 'pri_pro_test']);
 
         $this->actingAs($user)
             ->patch('/subscription', ['plan' => 'pro'])

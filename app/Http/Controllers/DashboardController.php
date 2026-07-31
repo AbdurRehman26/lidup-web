@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ProductUpdate;
 use App\Models\Release;
 use App\Services\ApiKeyService;
+use App\Services\SubscriptionPackageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -12,7 +13,7 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request, ApiKeyService $apiKeys): Response
+    public function __invoke(Request $request, ApiKeyService $apiKeys, SubscriptionPackageService $packages): Response
     {
         $request->user()->load('subscriptionPackage');
         $activeKey = $request->user()->tokens()->latest()->first();
@@ -49,7 +50,7 @@ class DashboardController extends Controller
                     'is_visible' => $request->user()->subscriptionPackage->is_visible,
                 ] : null,
             ],
-            'plans' => config('plans'),
+            'plans' => $packages->paidPlans(),
             'apiKey' => [
                 'prefix' => 'lidup_',
                 'created_at' => $activeKey->created_at,

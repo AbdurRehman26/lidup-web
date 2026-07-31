@@ -2,7 +2,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import SiteLayout from '../Layouts/SiteLayout';
 
-const tiers = [
+const freeTier =
     {
         key: 'free',
         name: 'Free',
@@ -10,31 +10,31 @@ const tiers = [
         suffix: 'forever',
         features: ['Free app download', 'Product updates', 'No account needed to download'],
         note: 'Included for everyone.',
-    },
-    {
-        key: 'personal',
-        name: 'Personal',
-        features: ['1 activation key', 'Use LidUp on 1 Mac', 'All app features', 'Email support'],
-        note: 'For your everyday Mac.',
-    },
-    {
-        key: 'pro',
-        name: 'Pro',
-        badge: 'Best value',
-        features: ['1 activation key', 'Use LidUp on 3 Macs', 'All app features', 'Priority support'],
-        note: 'For a multi-Mac setup.',
-    },
-];
+    };
 
 export default function Dashboard({ subscription, trial, plans, apiKey, activations, latestRelease, updates }) {
     const { auth, flash } = usePage().props;
     const [copied, setCopied] = useState(false);
+    const [billingInterval, setBillingInterval] = useState('month');
     const user = auth.user;
     const visibleKey = flash.plain_api_key;
     const currentPlan = subscription?.plan ?? (trial?.active ? trial.plan : null);
     const active = (Boolean(subscription?.paddle_id) && ['active', 'trialing'].includes(subscription?.status))
         || trial?.active;
     const accessStatus = subscription?.status ?? trial?.status ?? 'inactive';
+    const currentPackage = Object.values(plans).find((plan) => plan.plan === currentPlan);
+    const tiers = [
+        freeTier,
+        ...Object.entries(plans).map(([key, plan]) => ({
+            key,
+            plan: plan.plan,
+            name: plan.name,
+            badge: plan.plan === 'pro' ? 'Best value' : null,
+            features: ['1 activation key', `Use LidUp on ${plan.devices} ${plan.devices === 1 ? 'Mac' : 'Macs'}`, 'All app features', plan.plan === 'pro' ? 'Priority support' : 'Email support'],
+            note: plan.description,
+        })),
+    ];
+    const visibleTiers = tiers.filter((tier) => tier.key === 'free' || plans[tier.key]?.billing_interval === billingInterval);
 
     const copyKey = async () => {
         if (!visibleKey) return;
@@ -99,10 +99,11 @@ export default function Dashboard({ subscription, trial, plans, apiKey, activati
                     </section>
                 )}
 
+                <BillingToggle value={billingInterval} onChange={setBillingInterval} />
                 <section className="account-plans" aria-label="Available plans">
-                    {tiers.map((tier) => {
+                    {visibleTiers.map((tier) => {
                         const config = plans[tier.key];
-                        const selected = tier.key === currentPlan;
+                        const selected = tier.plan === currentPlan;
                         const isFree = tier.key === 'free';
                         return (
                             <article className={`account-plan-card ${selected ? 'is-current' : ''} ${tier.badge ? 'is-featured' : ''}`} key={tier.key}>
@@ -112,7 +113,7 @@ export default function Dashboard({ subscription, trial, plans, apiKey, activati
                                     {!selected && tier.badge && <span>{tier.badge}</span>}
                                 </div>
                                 <div className="account-plan-price">
-                                    <strong>€{isFree ? 0 : config.price}</strong>
+                                    <strong>{isFree ? '€0' : formatMoney(config.price, config.currency)}</strong>
                                     <span>{isFree ? tier.suffix : `/ ${config.interval}`}</span>
                                 </div>
                                 <ul>
@@ -165,7 +166,7 @@ export default function Dashboard({ subscription, trial, plans, apiKey, activati
                     <dl className="license-facts">
                         <div><dt>Plan</dt><dd>{titleCase(currentPlan ?? 'Free')}</dd></div>
                         <div><dt>Status</dt><dd>{titleCase(accessStatus)}</dd></div>
-                        <div><dt>Devices</dt><dd>{activations.length} of {trial?.package?.device_limit ?? plans[currentPlan]?.devices ?? 0} active</dd></div>
+                        <div><dt>Devices</dt><dd>{activations.length} of {trial?.package?.device_limit ?? currentPackage?.devices ?? 0} active</dd></div>
                         <div><dt>Updates</dt><dd>{active ? 'Included with your plan' : 'Free downloads available'}</dd></div>
                     </dl>
 
@@ -215,6 +216,10 @@ export default function Dashboard({ subscription, trial, plans, apiKey, activati
     );
 }
 
+function BillingToggle({ value, onChange }) {
+    return <div className="billing-toggle account-billing-toggle"><button className={value === 'month' ? 'is-selected' : ''} type="button" onClick={() => onChange('month')}>Monthly</button><button className={value === 'year' ? 'is-selected' : ''} type="button" onClick={() => onChange('year')}>Yearly · save 2 months</button></div>;
+}
+
 function CheckIcon() {
     return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 12 3 3 7-7" /><circle cx="12" cy="12" r="9" /></svg>;
 }
@@ -232,4 +237,7 @@ function DownloadIcon() {
 }
 
 const formatDate = (value) => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(value));
+const formatMoney = (price, currency) => new Intl.NumberFormat('en', {
+    style: 'currency', currency, maximumFractionDigits: Number(price) % 1 === 0 ? 0 : 2,
+}).format(price);
 const titleCase = (value) => value.charAt(0).toUpperCase() + value.slice(1).replace('_', ' ');

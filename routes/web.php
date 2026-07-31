@@ -6,13 +6,15 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeviceController;
 use App\Http\Controllers\DownloadController;
 use App\Http\Controllers\SubscriptionController;
+use App\Services\SubscriptionPackageService;
 use App\Services\TrialService;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/', fn (TrialService $trials) => Inertia::render('Home', [
+Route::get('/', fn (TrialService $trials, SubscriptionPackageService $packages) => Inertia::render('Home', [
     'trialOffer' => $trials->present($trials->currentOffer()),
     'packages' => $trials->publicPackages()->map(fn ($package) => $trials->present($package))->values(),
+    'paidPlans' => $packages->paidPlans(),
 ]))->name('home');
 Route::get('/faqs', fn () => Inertia::render('Faqs'))->name('faqs');
 Route::get('/download', [DownloadController::class, 'index'])->name('download');

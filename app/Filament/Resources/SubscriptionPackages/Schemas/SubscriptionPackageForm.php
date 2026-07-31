@@ -63,8 +63,19 @@ class SubscriptionPackageForm
                         Toggle::make('is_visible')
                             ->label('Show on website')
                             ->default(true),
-                        TextInput::make('price')->numeric()->minValue(0)->prefix('€'),
+                        TextInput::make('price')
+                            ->numeric()
+                            ->minValue(0)
+                            ->helperText('Enter the amount in the currency selected beside it.'),
                         TextInput::make('currency')->default('EUR')->maxLength(3)->required(),
+                        Select::make('billing_interval')
+                            ->label('Billing interval')
+                            ->options([
+                                'month' => 'Monthly',
+                                'year' => 'Yearly',
+                            ])
+                            ->default('month')
+                            ->required(),
                         TextInput::make('paddle_price_id')
                             ->label('Paddle price ID')
                             ->placeholder('pri_...')

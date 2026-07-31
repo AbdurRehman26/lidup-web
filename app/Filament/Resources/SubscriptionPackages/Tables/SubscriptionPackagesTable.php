@@ -29,6 +29,12 @@ class SubscriptionPackagesTable
                     ->badge()
                     ->state(fn (SubscriptionPackage $record): string => $record->is_paid ? 'Paid' : 'Free')
                     ->color(fn (string $state): string => $state === 'Paid' ? 'primary' : 'success'),
+                TextColumn::make('billing_interval')
+                    ->label('Billing')
+                    ->badge()
+                    ->state(fn (SubscriptionPackage $record): ?string => $record->is_paid ? $record->billing_interval : null)
+                    ->formatStateUsing(fn (?string $state): string => $state === 'year' ? 'Yearly' : 'Monthly')
+                    ->placeholder('—'),
                 IconColumn::make('is_active')->label('Active')->boolean(),
                 IconColumn::make('is_visible')->label('On website')->boolean(),
                 TextColumn::make('sort_order')->label('Order')->sortable(),

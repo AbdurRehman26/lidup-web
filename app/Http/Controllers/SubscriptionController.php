@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\SubscriptionPackage;
+use App\Services\SubscriptionPackageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,21 +13,22 @@ use Inertia\Response;
 
 class SubscriptionController extends Controller
 {
+    public function __construct(private readonly SubscriptionPackageService $packages) {}
+
     public function show(Request $request): Response
     {
-        $plans = $this->paidPlans();
+        $plans = $this->packages->paidPlans();
 
         return Inertia::render('Subscription', [
             'subscription' => $request->user()->appSubscription,
             'plans' => $plans,
-            'billingConfigured' => filled(config('cashier.client_side_token'))
-                && collect($plans)->every(fn (array $plan): bool => filled($plan['paddle_price_id'])),
+            'billingConfigured' => filled(config('cashier.client_side_token')),
         ]);
     }
 
     public function checkout(Request $request): JsonResponse
     {
-        $plans = $this->paidPlans();
+        $plans = $this->packages->paidPlans();
         $validated = $request->validate(['plan' => ['required', Rule::in(array_keys($plans))]]);
         $priceId = $plans[$validated['plan']]['paddle_price_id'];
 
@@ -54,7 +55,7 @@ class SubscriptionController extends Controller
 
     public function update(Request $request): RedirectResponse
     {
-        $plans = $this->paidPlans();
+        $plans = $this->packages->paidPlans();
         $validated = $request->validate(['plan' => ['required', Rule::in(array_keys($plans))]]);
         $subscription = $request->user()->subscription('default');
         $priceId = $plans[$validated['plan']]['paddle_price_id'];
@@ -83,30 +84,5 @@ class SubscriptionController extends Controller
         }
 
         return back()->with('subscription_updated', 'Your subscription will end after the current billing period.');
-    }
-
-    private function paidPlans(): array
-    {
-        $packages = SubscriptionPackage::query()
-            ->active()
-            ->visible()
-            ->where('is_paid', true)
-            ->orderBy('sort_order')
-            ->get();
-
-        if ($packages->isEmpty()) {
-            return config('plans');
-        }
-
-        return $packages->mapWithKeys(fn (SubscriptionPackage $package): array => [
-            $package->slug => [
-                'name' => $package->name,
-                'price' => $package->price,
-                'interval' => 'month',
-                'devices' => $package->device_limit,
-                'paddle_price_id' => $package->paddle_price_id,
-                'plan' => $package->plan,
-            ],
-        ])->all();
     }
 }

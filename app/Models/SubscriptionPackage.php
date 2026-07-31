@@ -55,6 +55,10 @@ class SubscriptionPackage extends Model
             'is_active' => 'boolean',
             'is_visible' => 'boolean',
             'price' => 'decimal:2',
+            'device_limit' => 'integer',
+            'user_limit' => 'integer',
+            'duration_value' => 'integer',
+            'sort_order' => 'integer',
         ];
     }
 }

@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import { useState } from 'react';
 import ClaudeIcon from '@lobehub/icons/es/Claude/components/Color.js';
 import CodexIcon from '@lobehub/icons/es/Codex/components/Color.js';
 import CursorIcon from '@lobehub/icons/es/Cursor/components/Mono.js';
@@ -17,7 +18,11 @@ const supportedAgents = [
     { name: 'GitHub Copilot', maker: 'GitHub', icon: GithubCopilotIcon, className: 'copilot' },
 ];
 
-export default function Home({ trialOffer, packages = [] }) {
+export default function Home({ trialOffer, packages = [], paidPlans = {} }) {
+    const freePackages = packages.filter((pkg) => !pkg.is_paid);
+    const [billingInterval, setBillingInterval] = useState('month');
+    const visiblePaidPlans = Object.values(paidPlans).filter((plan) => plan.billing_interval === billingInterval);
+
     return (
         <SiteLayout>
             <Head title="Lidup your Mac" />
@@ -97,15 +102,17 @@ export default function Home({ trialOffer, packages = [] }) {
 
             <section id="pricing" className="pricing-section">
                 <div className="price-copy"><p className="kicker">Simple pricing</p><h2>One small app.<br />One simple plan.</h2><p>Everything you need to keep your Mac working while you move.</p></div>
+                <BillingToggle value={billingInterval} onChange={setBillingInterval} />
                 <div className="pricing-cards">
-                    <PlanCard name="Personal" price="4" devices="1 Mac" href="/register?plan=personal" trialOffer={trialOffer} />
-                    <PlanCard name="Pro" price="8" devices="Up to 3 Macs" href="/register?plan=pro" trialOffer={trialOffer} featured />
+                    {visiblePaidPlans.map((plan) => (
+                        <PlanCard packagePlan={plan} href={`/register?plan=${plan.slug}`} trialOffer={trialOffer} featured={plan.plan === 'pro'} key={plan.id} />
+                    ))}
                 </div>
-                {packages.length > 0 && (
+                {freePackages.length > 0 && (
                     <div className="early-access-ladder">
                         <header><span>Early-access packages</span><small>New accounts move through active tiers automatically.</small></header>
                         <div>
-                            {packages.map((pkg) => (
+                            {freePackages.map((pkg) => (
                                 <article className={pkg.id === trialOffer?.id ? 'is-current' : ''} key={pkg.id}>
                                     <span>{pkg.id === trialOffer?.id ? 'Open now' : pkg.is_paid ? 'Paid' : 'Upcoming'}</span>
                                     <b>{pkg.name}</b>
@@ -129,6 +136,15 @@ export default function Home({ trialOffer, packages = [] }) {
     );
 }
 
+function BillingToggle({ value, onChange }) {
+    return (
+        <div className="billing-toggle" aria-label="Billing interval">
+            <button className={value === 'month' ? 'is-selected' : ''} type="button" onClick={() => onChange('month')}>Monthly</button>
+            <button className={value === 'year' ? 'is-selected' : ''} type="button" onClick={() => onChange('year')}>Yearly <span>2 months free</span></button>
+        </div>
+    );
+}
+
 function Feature({ icon, title, children }) {
     return <article><div className="feature-icon">{icon}</div><h3>{title}</h3><p>{children}</p></article>;
 }
@@ -137,15 +153,21 @@ function Setting({ title, enabled }) {
     return <div className="setting-row"><span>{title}</span><i className={enabled ? 'toggle-on' : ''}><b /></i></div>;
 }
 
-function PlanCard({ name, price, devices, href, trialOffer, featured = false }) {
+function PlanCard({ packagePlan, href, trialOffer, featured = false }) {
+    const deviceLabel = packagePlan.devices === 1 ? '1 Mac' : `Up to ${packagePlan.devices} Macs`;
+
     return (
         <div className={`price-card${featured ? ' featured' : ''}`}>
             {featured && <span className="best-plan">Most popular</span>}
-            <div className="price-card-head"><img src="/app-icon.png" alt="" /><div><b>{name}</b><span>{devices}</span></div></div>
-            <div className="price"><strong>${price}</strong><span>per month</span></div>
+            <div className="price-card-head"><img src="/app-icon.png" alt="" /><div><b>{packagePlan.name}</b><span>{deviceLabel}</span></div></div>
+            <div className="price"><strong>{formatMoney(packagePlan.price, packagePlan.currency)}</strong><span>per {packagePlan.interval}</span></div>
             <ul><li>Unlimited protected sessions</li><li>Automatic process rules</li><li>Battery safety controls</li><li>All future updates</li></ul>
-            <Link className="button button-wide" href={href}>{trialOffer ? `Start ${trialOffer.duration_label.toLowerCase()} free` : `Choose ${name}`}</Link>
+            <Link className="button button-wide" href={href}>{trialOffer ? `Start ${trialOffer.duration_label.toLowerCase()} free` : `Choose ${packagePlan.name}`}</Link>
             <small>{trialOffer ? `${trialOffer.name} is currently open. No card required.` : 'Secure checkout powered by Paddle.'}</small>
         </div>
     );
 }
+
+const formatMoney = (price, currency) => new Intl.NumberFormat('en', {
+    style: 'currency', currency, maximumFractionDigits: Number(price) % 1 === 0 ? 0 : 2,
+}).format(price);

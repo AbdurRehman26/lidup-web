@@ -1,8 +1,19 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import { useState } from 'react';
 import SiteLayout from '../Layouts/SiteLayout';
 
 export default function Register({ plans, selectedPlan, trialOffer }) {
     const form = useForm({ name: '', email: '', password: '', password_confirmation: '', plan: selectedPlan });
+    const [billingInterval, setBillingInterval] = useState(plans[selectedPlan]?.billing_interval ?? 'month');
+    const visiblePlans = Object.entries(plans).filter(([, plan]) => plan.billing_interval === billingInterval);
+
+    const changeBilling = (interval) => {
+        setBillingInterval(interval);
+        const currentTier = plans[form.data.plan]?.plan;
+        const replacement = Object.entries(plans).find(([, plan]) => plan.billing_interval === interval && plan.plan === currentTier)
+            ?? Object.entries(plans).find(([, plan]) => plan.billing_interval === interval);
+        if (replacement) form.setData('plan', replacement[0]);
+    };
 
     const submit = (event) => {
         event.preventDefault();
@@ -20,10 +31,11 @@ export default function Register({ plans, selectedPlan, trialOffer }) {
                 <div className="auth-copy"><p className="eyebrow">{trialOffer?.name ?? 'Private beta'}</p><h1>Close the lid.<br /><em>Come back to done.</em></h1><p>{trialOffer ? `Create your account and receive ${trialOffer.duration_label.toLowerCase()} of early access. No credit card required.` : 'Create your account and choose the plan that fits your Macs.'}</p></div>
                 <form onSubmit={submit} className="auth-card">
                     <h2>Create your account</h2>
+                    <BillingToggle value={billingInterval} onChange={changeBilling} />
                     <div className="plan-picker" aria-label="Choose a plan">
-                        {Object.entries(plans).map(([key, plan]) => (
+                        {visiblePlans.map(([key, plan]) => (
                             <button className={form.data.plan === key ? 'selected' : ''} type="button" key={key} onClick={() => form.setData('plan', key)}>
-                                <span>{plan.name}</span><b>${plan.price}<small>/mo</small></b>
+                                <span>{plan.name}</span><b>{formatMoney(plan.price, plan.currency)}<small>/{plan.interval}</small></b>
                             </button>
                         ))}
                     </div>
@@ -39,6 +51,14 @@ export default function Register({ plans, selectedPlan, trialOffer }) {
         </SiteLayout>
     );
 }
+
+function BillingToggle({ value, onChange }) {
+    return <div className="billing-toggle is-compact"><button className={value === 'month' ? 'is-selected' : ''} type="button" onClick={() => onChange('month')}>Monthly</button><button className={value === 'year' ? 'is-selected' : ''} type="button" onClick={() => onChange('year')}>Yearly</button></div>;
+}
+
+const formatMoney = (price, currency) => new Intl.NumberFormat('en', {
+    style: 'currency', currency, maximumFractionDigits: Number(price) % 1 === 0 ? 0 : 2,
+}).format(price);
 
 function Field({ label, value, onChange, ...props }) {
     return <label>{label}<input {...props} value={value} onChange={(event) => onChange(event.target.value)} required /></label>;
