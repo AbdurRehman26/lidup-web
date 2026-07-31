@@ -541,12 +541,14 @@ class SiteFlowTest extends TestCase
 
         $response->assertRedirect('/dashboard')->assertSessionHas('plain_api_key');
         $plainText = session('plain_api_key');
+        $token = Str::after($plainText, '|');
 
         $this->assertStringContainsString('|lidup_', $plainText);
+        $this->assertSame(38, strlen($token));
         $this->assertDatabaseHas('personal_access_tokens', [
             'tokenable_type' => User::class,
             'tokenable_id' => User::where('email', 'grace@example.com')->value('id'),
-            'token' => hash('sha256', Str::after($plainText, '|')),
+            'token' => hash('sha256', $token),
         ]);
         $this->assertDatabaseMissing('personal_access_tokens', ['token' => $plainText]);
     }

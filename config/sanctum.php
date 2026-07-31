@@ -67,6 +67,8 @@ return [
 
     'token_prefix' => env('SANCTUM_TOKEN_PREFIX', 'lidup_'),
 
+    'token_entropy_length' => max(24, (int) env('SANCTUM_TOKEN_ENTROPY_LENGTH', 24)),
+
     /*
     |--------------------------------------------------------------------------
     | Sanctum Middleware

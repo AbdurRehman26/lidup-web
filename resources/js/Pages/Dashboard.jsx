@@ -154,7 +154,7 @@ export default function Dashboard({ subscription, trial, plans, apiKey, activati
                     <div className="license-key-block">
                         <label>Activation key</label>
                         <div className="license-key-field">
-                            <code>{visibleKey ?? `${apiKey.prefix}${'•'.repeat(30)}`}</code>
+                            <code>{visibleKey ?? `${apiKey.prefix}${'•'.repeat(22)}`}</code>
                             <button type="button" onClick={visibleKey ? copyKey : rotateKey} aria-label={visibleKey ? 'Copy activation key' : 'Generate a new activation key'}>
                                 {visibleKey ? (copied ? 'Copied' : <CopyIcon />) : 'Generate new key'}
                             </button>

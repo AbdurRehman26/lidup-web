@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 use Laravel\Paddle\Billable;
 use Laravel\Sanctum\HasApiTokens;
 
@@ -57,6 +58,13 @@ class User extends Authenticatable implements FilamentUser
     public function canAccessPanel(Panel $panel): bool
     {
         return $this->is_admin;
+    }
+
+    public function generateTokenString(): string
+    {
+        $entropy = Str::random((int) config('sanctum.token_entropy_length', 24));
+
+        return config('sanctum.token_prefix', '').$entropy.hash('crc32b', $entropy);
     }
 
     public function onAppTrial(): bool
