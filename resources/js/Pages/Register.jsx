@@ -44,7 +44,7 @@ export default function Register({ plans, selectedPlan, trialOffer }) {
                     <Field label="Password" type="password" value={form.data.password} onChange={(value) => form.setData('password', value)} autoComplete="new-password" />
                     <Field label="Confirm password" type="password" value={form.data.password_confirmation} onChange={(value) => form.setData('password_confirmation', value)} autoComplete="new-password" />
                     {firstError && <p className="form-error">{firstError}</p>}
-                    <button className="button button-wide" type="submit" disabled={form.processing}>{trialOffer ? 'Start my trial' : 'Create my account'} <span>→</span></button>
+                    <button className="button button-wide auth-submit" type="submit" disabled={form.processing}>{trialOffer ? 'Start my trial' : 'Create my account'} <span>→</span></button>
                     <p>Already have an account? <Link href="/login">Log in</Link></p>
                 </form>
             </section>

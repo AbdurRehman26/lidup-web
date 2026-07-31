@@ -200,6 +200,7 @@ h1, h2, h3 { font-family: var(--display); letter-spacing: -.045em; }
 .auth-card input { display: block; margin-top: .45rem; color: var(--ink); }
 .auth-card .checkbox { margin: 1rem 0; display: flex; gap: .6rem; align-items: center; color: var(--muted); font-size: .75rem; }
 .auth-card .checkbox input { width: 16px; height: 16px; min-height: auto; margin: 0; }
+.auth-card .auth-submit { margin-top: 1.5rem; }
 .auth-card > p:last-child { margin: 1.3rem 0 0; text-align: center; font-size: .75rem; }
 .auth-card a { color: var(--lavender-dark); font-weight: 650; }
 .plan-picker { margin-bottom: 1.4rem; padding: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; border-radius: 13px; background: #eeeaf4; }
