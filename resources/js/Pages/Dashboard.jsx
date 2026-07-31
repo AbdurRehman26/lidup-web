@@ -2,39 +2,16 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import SiteLayout from '../Layouts/SiteLayout';
 
-const freeTier =
-    {
-        key: 'free',
-        name: 'Free',
-        price: 0,
-        suffix: 'forever',
-        features: ['Free app download', 'Product updates', 'No account needed to download'],
-        note: 'Included for everyone.',
-    };
-
-export default function Dashboard({ subscription, trial, plans, apiKey, activations, latestRelease, updates }) {
+export default function Dashboard({ subscription, trial, earlyBirdPackages = [], apiKey, activations, latestRelease, updates }) {
     const { auth, flash } = usePage().props;
     const [copied, setCopied] = useState(false);
-    const [billingInterval, setBillingInterval] = useState('month');
     const user = auth.user;
     const visibleKey = flash.plain_api_key;
+    const hasApiKey = apiKey.exists;
     const currentPlan = subscription?.plan ?? (trial?.active ? trial.plan : null);
     const active = (Boolean(subscription?.paddle_id) && ['active', 'trialing'].includes(subscription?.status))
         || trial?.active;
     const accessStatus = subscription?.status ?? trial?.status ?? 'inactive';
-    const currentPackage = Object.values(plans).find((plan) => plan.plan === currentPlan);
-    const tiers = [
-        freeTier,
-        ...Object.entries(plans).map(([key, plan]) => ({
-            key,
-            plan: plan.plan,
-            name: plan.name,
-            badge: plan.plan === 'pro' ? 'Best value' : null,
-            features: ['1 activation key', `Use LidUp on ${plan.devices} ${plan.devices === 1 ? 'Mac' : 'Macs'}`, 'All app features', plan.plan === 'pro' ? 'Priority support' : 'Email support'],
-            note: plan.description,
-        })),
-    ];
-    const visibleTiers = tiers.filter((tier) => tier.key === 'free' || plans[tier.key]?.billing_interval === billingInterval);
 
     const copyKey = async () => {
         if (!visibleKey) return;
@@ -48,6 +25,8 @@ export default function Dashboard({ subscription, trial, plans, apiKey, activati
             router.put('/api-key', {}, { preserveScroll: true });
         }
     };
+
+    const generateKey = () => router.post('/api-key', {}, { preserveScroll: true });
 
     const removeDevice = (activation) => {
         if (window.confirm(`Deactivate ${activation.device_name || 'this Mac'}?`)) {
@@ -99,37 +78,18 @@ export default function Dashboard({ subscription, trial, plans, apiKey, activati
                     </section>
                 )}
 
-                <BillingToggle value={billingInterval} onChange={setBillingInterval} />
-                <section className="account-plans" aria-label="Available plans">
-                    {visibleTiers.map((tier) => {
-                        const config = plans[tier.key];
-                        const selected = tier.plan === currentPlan;
-                        const isFree = tier.key === 'free';
-                        return (
-                            <article className={`account-plan-card ${selected ? 'is-current' : ''} ${tier.badge ? 'is-featured' : ''}`} key={tier.key}>
-                                <div className="account-plan-title">
-                                    <h2>{tier.name}</h2>
-                                    {selected && <span>Current plan</span>}
-                                    {!selected && tier.badge && <span>{tier.badge}</span>}
-                                </div>
-                                <div className="account-plan-price">
-                                    <strong>{isFree ? '€0' : formatMoney(config.price, config.currency)}</strong>
-                                    <span>{isFree ? tier.suffix : `/ ${config.interval}`}</span>
-                                </div>
-                                <ul>
-                                    {tier.features.map((feature) => <li key={feature}><CheckIcon />{feature}</li>)}
-                                </ul>
-                                {isFree ? (
-                                    <Link className="account-plan-action is-quiet" href="/download">Download free</Link>
-                                ) : (
-                                    <Link className={`account-plan-action ${tier.badge ? 'is-primary' : ''}`} href="/subscription">
-                                        {selected ? 'Manage plan' : `Choose ${tier.name}`}
-                                    </Link>
-                                )}
-                                <small>{tier.note}</small>
+                <section className="dashboard-early-bird-tiers" aria-label="Early-bird tiers">
+                    <header><div><p className="eyebrow">Early-bird access</p><h2>Access tiers</h2></div><span>Paid packages are not open yet</span></header>
+                    <div>
+                        {earlyBirdPackages.map((tier) => (
+                            <article className={trial?.package?.id === tier.id ? 'is-current' : ''} key={tier.id}>
+                                <span>{trial?.package?.id === tier.id ? 'Your tier' : tier.id === earlyBirdPackages.find((item) => item.remaining_spots === null || item.remaining_spots > 0)?.id ? 'Open now' : 'Upcoming'}</span>
+                                <h3>{tier.name}</h3>
+                                <strong>{tier.duration_label} free</strong>
+                                <small>{tier.remaining_spots === null ? 'Unlimited places' : `${tier.remaining_spots} of ${tier.user_limit} places remaining`}</small>
                             </article>
-                        );
-                    })}
+                        ))}
+                    </div>
                 </section>
 
                 <section className="license-wallet">
@@ -138,6 +98,9 @@ export default function Dashboard({ subscription, trial, plans, apiKey, activati
                             <div className="license-title-row">
                                 <h2>Activation key</h2>
                                 <span className={`license-state ${active ? 'is-active' : ''}`}><CheckIcon />{active ? 'Active' : 'Inactive'}</span>
+                                {trial?.active && trial.package && !trial.package.is_paid && (
+                                    <span className="early-bird-key-badge">Early bird · {trial.package.name}</span>
+                                )}
                             </div>
                             <p>{subscription?.created_at
                                 ? `Plan started ${formatDate(subscription.created_at)}`
@@ -145,7 +108,7 @@ export default function Dashboard({ subscription, trial, plans, apiKey, activati
                                     ? `${trial.package?.name ?? 'Free trial'} · ${trial.ends_at ? `ends ${formatDate(trial.ends_at)}` : 'unlimited access'}`
                                     : 'Created for your LidUp account'}</p>
                         </div>
-                        <Link href="/subscription">Manage subscription</Link>
+                        <span className="early-access-only">Early-bird access</span>
                     </header>
 
                     {(flash.api_key_message || flash.device_message) && (
@@ -153,20 +116,34 @@ export default function Dashboard({ subscription, trial, plans, apiKey, activati
                     )}
 
                     <div className="license-key-block">
+                        {trial?.active && trial.package && !trial.package.is_paid && (
+                            <div className="key-early-bird-note">
+                                <span>Early-bird member {trial.cohort_position ? `#${trial.cohort_position}` : ''}</span>
+                                <strong>{trial.package.duration} access is active with this key</strong>
+                                {trial.package.user_limit && <small>{trial.package.users_count} of {trial.package.user_limit} early-bird places claimed</small>}
+                            </div>
+                        )}
+                        {!hasApiKey && !trial?.active && earlyBirdPackages.length > 0 && (
+                            <div className="key-early-bird-note is-unclaimed">
+                                <span>Early-bird access available</span>
+                                <strong>Generate your activation key to claim the current tier</strong>
+                                <small>{earlyBirdPackages[0].remaining_spots ?? 'Unlimited'} places remaining</small>
+                            </div>
+                        )}
                         <label>Activation key</label>
                         <div className="license-key-field">
-                            <code>{visibleKey ?? `${apiKey.prefix}${'•'.repeat(22)}`}</code>
-                            <button type="button" onClick={visibleKey ? copyKey : rotateKey} aria-label={visibleKey ? 'Copy activation key' : 'Generate a new activation key'}>
-                                {visibleKey ? (copied ? 'Copied' : <CopyIcon />) : 'Generate new key'}
+                            <code>{visibleKey ?? (hasApiKey ? `${apiKey.prefix}${'•'.repeat(22)}` : 'No activation key generated')}</code>
+                            <button type="button" onClick={visibleKey ? copyKey : hasApiKey ? rotateKey : generateKey} aria-label={visibleKey ? 'Copy activation key' : hasApiKey ? 'Generate a new activation key' : 'Generate activation key and claim early-bird access'}>
+                                {visibleKey ? (copied ? 'Copied' : <CopyIcon />) : hasApiKey ? 'Generate new key' : 'Generate key'}
                             </button>
                         </div>
-                        {!visibleKey && <p>For security, the full key is shown only when it is first generated.</p>}
+                        {!visibleKey && <p>{hasApiKey ? 'For security, the full key is shown only when it is first generated.' : 'Generating a key claims your early-bird place and starts its access period.'}</p>}
                     </div>
 
                     <dl className="license-facts">
                         <div><dt>Plan</dt><dd>{titleCase(currentPlan ?? 'Free')}</dd></div>
                         <div><dt>Status</dt><dd>{titleCase(accessStatus)}</dd></div>
-                        <div><dt>Devices</dt><dd>{activations.length} of {trial?.package?.device_limit ?? currentPackage?.devices ?? 0} active</dd></div>
+                        <div><dt>Devices</dt><dd>{activations.length} of {trial?.package?.device_limit ?? 0} active</dd></div>
                         <div><dt>Updates</dt><dd>{active ? 'Included with your plan' : 'Free downloads available'}</dd></div>
                     </dl>
 
@@ -216,10 +193,6 @@ export default function Dashboard({ subscription, trial, plans, apiKey, activati
     );
 }
 
-function BillingToggle({ value, onChange }) {
-    return <div className="billing-toggle account-billing-toggle"><button className={value === 'month' ? 'is-selected' : ''} type="button" onClick={() => onChange('month')}>Monthly</button><button className={value === 'year' ? 'is-selected' : ''} type="button" onClick={() => onChange('year')}>Yearly · save 2 months</button></div>;
-}
-
 function CheckIcon() {
     return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 12 3 3 7-7" /><circle cx="12" cy="12" r="9" /></svg>;
 }
@@ -237,7 +210,4 @@ function DownloadIcon() {
 }
 
 const formatDate = (value) => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(value));
-const formatMoney = (price, currency) => new Intl.NumberFormat('en', {
-    style: 'currency', currency, maximumFractionDigits: Number(price) % 1 === 0 ? 0 : 2,
-}).format(price);
 const titleCase = (value) => value.charAt(0).toUpperCase() + value.slice(1).replace('_', ' ');

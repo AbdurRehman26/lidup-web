@@ -1,5 +1,4 @@
 import { Head, Link } from '@inertiajs/react';
-import { useState } from 'react';
 import ClaudeIcon from '@lobehub/icons/es/Claude/components/Color.js';
 import CodexIcon from '@lobehub/icons/es/Codex/components/Color.js';
 import CursorIcon from '@lobehub/icons/es/Cursor/components/Mono.js';
@@ -18,10 +17,8 @@ const supportedAgents = [
     { name: 'GitHub Copilot', maker: 'GitHub', icon: GithubCopilotIcon, className: 'copilot' },
 ];
 
-export default function Home({ trialOffer, packages = [], paidPlans = {} }) {
+export default function Home({ trialOffer, packages = [] }) {
     const freePackages = packages.filter((pkg) => !pkg.is_paid);
-    const [billingInterval, setBillingInterval] = useState('month');
-    const visiblePaidPlans = Object.values(paidPlans).filter((plan) => plan.billing_interval === billingInterval);
 
     return (
         <SiteLayout>
@@ -101,26 +98,14 @@ export default function Home({ trialOffer, packages = [], paidPlans = {} }) {
             </section>
 
             <section id="pricing" className="pricing-section">
-                <div className="price-copy"><p className="kicker">Simple pricing</p><h2>One small app.<br />One simple plan.</h2><p>Everything you need to keep your Mac working while you move.</p></div>
-                <BillingToggle value={billingInterval} onChange={setBillingInterval} />
-                <div className="pricing-cards">
-                    {visiblePaidPlans.map((plan) => (
-                        <PlanCard packagePlan={plan} href={`/register?plan=${plan.slug}`} trialOffer={trialOffer} featured={plan.plan === 'pro'} key={plan.id} />
-                    ))}
-                </div>
-                {freePackages.length > 0 && (
-                    <div className="early-access-ladder">
-                        <header><span>Early-access packages</span><small>New accounts move through active tiers automatically.</small></header>
-                        <div>
-                            {freePackages.map((pkg) => (
-                                <article className={pkg.id === trialOffer?.id ? 'is-current' : ''} key={pkg.id}>
-                                    <span>{pkg.id === trialOffer?.id ? 'Open now' : pkg.is_paid ? 'Paid' : 'Upcoming'}</span>
-                                    <b>{pkg.name}</b>
-                                    <strong>{pkg.is_paid ? `${pkg.currency} ${pkg.price}` : pkg.duration_label}</strong>
-                                    <small>{pkg.user_limit ? `${pkg.users_count} of ${pkg.user_limit} assigned` : 'No user limit'}</small>
-                                </article>
-                            ))}
-                        </div>
+                <div className="price-copy"><p className="kicker">Limited early-bird offer</p><h2>Join early.<br /><em>Use LidUp free.</em></h2><p>Claim an activation key before the current tier fills. No card, no commitment.</p></div>
+                {trialOffer ? <EarlyBirdOfferCard offer={trialOffer} /> : <div className="early-bird-closed">The current early-bird allocation is full. Check back for the next tier.</div>}
+                {freePackages.some((pkg) => pkg.id !== trialOffer?.id) && (
+                    <div className="upcoming-early-tiers">
+                        <span>What comes next</span>
+                        {freePackages.filter((pkg) => pkg.id !== trialOffer?.id).map((pkg) => (
+                            <article key={pkg.id}><b>{pkg.name}</b><strong>{pkg.duration_label} free</strong><small>{pkg.user_limit ? `Up to ${pkg.user_limit} early users` : 'Unlimited places'}</small></article>
+                        ))}
                     </div>
                 )}
             </section>
@@ -136,12 +121,31 @@ export default function Home({ trialOffer, packages = [], paidPlans = {} }) {
     );
 }
 
-function BillingToggle({ value, onChange }) {
+function EarlyBirdOfferCard({ offer }) {
+    const remaining = offer.remaining_spots;
+    const claimedPercent = offer.user_limit ? Math.min(100, Math.round((offer.users_count / offer.user_limit) * 100)) : 0;
+
     return (
-        <div className="billing-toggle" aria-label="Billing interval">
-            <button className={value === 'month' ? 'is-selected' : ''} type="button" onClick={() => onChange('month')}>Monthly</button>
-            <button className={value === 'year' ? 'is-selected' : ''} type="button" onClick={() => onChange('year')}>Yearly <span>2 months free</span></button>
-        </div>
+        <article className="early-bird-offer-card" aria-label="Current early-bird offer">
+            <div className="early-bird-ribbon"><span>Early bird</span><b>100% off</b></div>
+            <header>
+                <div><span>Available now · {offer.name}</span><h3>Free access.<br />Real activation key.</h3></div>
+                <img src="/app-icon.png" alt="" />
+            </header>
+            <div className="early-bird-price"><strong>€0</strong><del>Paid launch plan</del><span>for {offer.duration_label.toLowerCase()}</span></div>
+            <div className="early-bird-capacity">
+                <div><strong>{remaining === null ? 'Unlimited' : remaining} {remaining === 1 ? 'spot' : 'spots'} left</strong><span>{offer.users_count} already claimed</span></div>
+                {offer.user_limit && <i><b style={{ width: `${claimedPercent}%` }} /></i>}
+            </div>
+            <Link className="early-bird-cta" href="/register"><span className="apple-mark">●</span> Claim early-bird access <b>→</b></Link>
+            <small className="early-bird-no-card">No credit card required · Activation key issued instantly</small>
+            <ul>
+                <li>Full LidUp access for {offer.duration_label.toLowerCase()}</li>
+                <li>One activation key for {offer.device_limit} {offer.device_limit === 1 ? 'Mac' : 'Macs'}</li>
+                <li>Every coding-agent integration included</li>
+                <li>Automatic task-completion notifications</li>
+            </ul>
+        </article>
     );
 }
 
@@ -152,22 +156,3 @@ function Feature({ icon, title, children }) {
 function Setting({ title, enabled }) {
     return <div className="setting-row"><span>{title}</span><i className={enabled ? 'toggle-on' : ''}><b /></i></div>;
 }
-
-function PlanCard({ packagePlan, href, trialOffer, featured = false }) {
-    const deviceLabel = packagePlan.devices === 1 ? '1 Mac' : `Up to ${packagePlan.devices} Macs`;
-
-    return (
-        <div className={`price-card${featured ? ' featured' : ''}`}>
-            {featured && <span className="best-plan">Most popular</span>}
-            <div className="price-card-head"><img src="/app-icon.png" alt="" /><div><b>{packagePlan.name}</b><span>{deviceLabel}</span></div></div>
-            <div className="price"><strong>{formatMoney(packagePlan.price, packagePlan.currency)}</strong><span>per {packagePlan.interval}</span></div>
-            <ul><li>Unlimited protected sessions</li><li>Automatic process rules</li><li>Battery safety controls</li><li>All future updates</li></ul>
-            <Link className="button button-wide" href={href}>{trialOffer ? `Start ${trialOffer.duration_label.toLowerCase()} free` : `Choose ${packagePlan.name}`}</Link>
-            <small>{trialOffer ? `${trialOffer.name} is currently open. No card required.` : 'Secure checkout powered by Paddle.'}</small>
-        </div>
-    );
-}
-
-const formatMoney = (price, currency) => new Intl.NumberFormat('en', {
-    style: 'currency', currency, maximumFractionDigits: Number(price) % 1 === 0 ? 0 : 2,
-}).format(price);

@@ -33,7 +33,11 @@ class SubscriptionPackagesTable
                     ->label('Billing')
                     ->badge()
                     ->state(fn (SubscriptionPackage $record): ?string => $record->is_paid ? $record->billing_interval : null)
-                    ->formatStateUsing(fn (?string $state): string => $state === 'year' ? 'Yearly' : 'Monthly')
+                    ->formatStateUsing(fn (?string $state): string => match ($state) {
+                        'year' => 'Yearly',
+                        'one_time' => 'One-time',
+                        default => 'Monthly',
+                    })
                     ->placeholder('—'),
                 IconColumn::make('is_active')->label('Active')->boolean(),
                 IconColumn::make('is_visible')->label('On website')->boolean(),

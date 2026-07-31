@@ -74,6 +74,8 @@ class TrialService
             return null;
         }
 
+        $usersCount = $package->users_count ?? $package->users()->count();
+
         return [
             'id' => $package->id,
             'name' => $package->name,
@@ -82,7 +84,10 @@ class TrialService
             'plan' => $package->plan,
             'device_limit' => $package->device_limit,
             'user_limit' => $package->user_limit,
-            'users_count' => $package->users_count ?? $package->users()->count(),
+            'users_count' => $usersCount,
+            'remaining_spots' => $package->user_limit === null
+                ? null
+                : max(0, $package->user_limit - $usersCount),
             'duration_label' => $package->durationLabel(),
             'duration_unit' => $package->duration_unit,
             'duration_value' => $package->duration_value,

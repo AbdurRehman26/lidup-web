@@ -36,6 +36,7 @@ class SubscriptionPackageService
             'description' => $package->description,
             'plan' => $package->plan,
             'price' => $package->price,
+            'original_price' => $package->original_price,
             'currency' => $package->currency,
             'interval' => $package->billing_interval,
             'billing_interval' => $package->billing_interval,

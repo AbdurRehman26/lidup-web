@@ -31,7 +31,7 @@ export default function SiteLayout({ children }) {
                     </button>
                     {auth.user ? (
                         <>
-                            <Link href="/dashboard">Dashboard</Link>
+                            <Link href={auth.user.email_verified_at ? '/dashboard' : '/email/verify'}>{auth.user.email_verified_at ? 'Dashboard' : 'Verify email'}</Link>
                             <button className="nav-button" type="button" onClick={logout}>Log out</button>
                         </>
                     ) : (

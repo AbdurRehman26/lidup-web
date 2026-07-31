@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Filament\Resources\Users\Pages\ListUsers;
+use App\Listeners\GrantLifetimePurchase;
 use App\Models\Release;
 use App\Models\SubscriptionPackage;
 use App\Models\TaskCompletionEvent;
@@ -12,12 +13,16 @@ use App\Notifications\TaskCompleted;
 use App\Services\ApiKeyService;
 use Database\Seeders\AdminUserSeeder;
 use Filament\Actions\Testing\TestAction;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
+use Laravel\Paddle\Events\TransactionCompleted;
+use Laravel\Paddle\Transaction;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -55,10 +60,21 @@ class SiteFlowTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Home')
                 ->where('auth.user', null)
+                ->where('trialOffer.user_limit', 10)
+                ->where('trialOffer.users_count', 0)
+                ->where('trialOffer.remaining_spots', 10)
+            );
+
+        $this->get('/register')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Register')
+                ->where('trialOffer.remaining_spots', 10)
+                ->missing('plans')
             );
     }
 
-    public function test_filament_package_prices_are_the_source_for_public_and_checkout_screens(): void
+    public function test_paid_packages_remain_stored_but_are_hidden_during_early_access(): void
     {
         SubscriptionPackage::where('slug', 'personal')->update([
             'price' => 12.50,
@@ -68,25 +84,37 @@ class SiteFlowTest extends TestCase
         $this->get('/')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('paidPlans.personal.price', '12.50')
-                ->where('paidPlans.personal.currency', 'GBP')
+                ->missing('paidPlans')
+                ->has('packages', 2)
             );
 
         $this->actingAs(User::factory()->create())
             ->get('/subscription')
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->where('plans.personal.price', '12.50')
-                ->where('plans.personal.currency', 'GBP')
-            );
+            ->assertRedirect('/dashboard');
 
-        $this->get('/')
-            ->assertInertia(fn (Assert $page) => $page
-                ->where('paidPlans.personal-yearly.price', '40.00')
-                ->where('paidPlans.personal-yearly.billing_interval', 'year')
-                ->where('paidPlans.pro-yearly.price', '80.00')
-                ->where('paidPlans.pro-yearly.billing_interval', 'year')
-            );
+        $personal = SubscriptionPackage::where('slug', 'personal')->firstOrFail();
+        $this->assertSame('12.50', $personal->price);
+        $this->assertSame('GBP', $personal->currency);
+        $this->assertFalse($personal->is_visible);
+    }
+
+    public function test_a_completed_one_time_paddle_transaction_grants_lifetime_access(): void
+    {
+        $package = SubscriptionPackage::where('slug', 'personal')->firstOrFail();
+        $package->update(['paddle_price_id' => 'pri_lifetime_personal']);
+        $user = User::factory()->create();
+        $event = new TransactionCompleted($user, new Transaction, [
+            'data' => [
+                'items' => [['price' => ['id' => 'pri_lifetime_personal']]],
+            ],
+        ]);
+
+        app(GrantLifetimePurchase::class)->handle($event);
+
+        $user->refresh();
+        $this->assertSame($package->id, $user->subscription_package_id);
+        $this->assertNull($user->trial_ends_at);
+        $this->assertTrue($user->onAppTrial());
     }
 
     public function test_an_eligible_visitor_receives_a_free_trial_when_creating_an_account(): void
@@ -97,16 +125,35 @@ class SiteFlowTest extends TestCase
             'password' => 'long-enough-password',
             'password_confirmation' => 'long-enough-password',
             'plan' => 'personal',
-        ])->assertRedirect('/dashboard');
+        ])->assertRedirect('/email/verify');
 
         $this->assertAuthenticated();
         $user = User::where('email', 'ada@example.com')->firstOrFail();
 
-        $this->assertSame(1, $user->trial_cohort_position);
+        $this->assertNull($user->trial_cohort_position);
         $this->assertSame('personal', $user->trial_plan);
-        $this->assertTrue($user->onAppTrial());
-        $this->assertEqualsWithDelta(now()->addDays(14)->timestamp, $user->trial_ends_at->timestamp, 5);
+        $this->assertFalse($user->onAppTrial());
+        $this->assertNull($user->trial_ends_at);
         $this->assertDatabaseCount('subscriptions', 0);
+
+        $user->markEmailAsVerified();
+        $this->actingAs($user->fresh())->get('/dashboard')->assertOk();
+        $this->assertSame(0, $user->tokens()->count());
+
+        $this->post('/api-key')->assertRedirect();
+        $user->refresh();
+        $this->assertSame(1, $user->trial_cohort_position);
+        $this->assertTrue($user->onAppTrial());
+        $this->assertEqualsWithDelta(now()->addMonthNoOverflow()->timestamp, $user->trial_ends_at->timestamp, 5);
+
+        $this->actingAs($user->fresh())->get('/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('trial.cohort_position', 1)
+                ->where('trial.package.user_limit', 10)
+                ->where('trial.package.users_count', 1)
+                ->where('trial.package.remaining_spots', 9)
+            );
     }
 
     public function test_users_advance_through_day_month_and_unlimited_package_tiers(): void
@@ -157,8 +204,11 @@ class SiteFlowTest extends TestCase
             'password' => 'long-enough-password',
             'password_confirmation' => 'long-enough-password',
             'plan' => 'personal',
-        ])->assertRedirect('/dashboard');
+        ])->assertRedirect('/email/verify');
 
+        $first = User::where('email', 'first@example.com')->firstOrFail();
+        $first->markEmailAsVerified();
+        $this->actingAs($first->fresh())->post('/api-key')->assertRedirect();
         $this->post('/logout')->assertRedirect('/');
 
         $this->post('/register', [
@@ -167,8 +217,11 @@ class SiteFlowTest extends TestCase
             'password' => 'long-enough-password',
             'password_confirmation' => 'long-enough-password',
             'plan' => 'pro',
-        ])->assertRedirect('/dashboard');
+        ])->assertRedirect('/email/verify');
 
+        $second = User::where('email', 'second@example.com')->firstOrFail();
+        $second->markEmailAsVerified();
+        $this->actingAs($second->fresh())->post('/api-key')->assertRedirect();
         $this->post('/logout')->assertRedirect('/');
 
         $this->post('/register', [
@@ -177,8 +230,11 @@ class SiteFlowTest extends TestCase
             'password' => 'long-enough-password',
             'password_confirmation' => 'long-enough-password',
             'plan' => 'personal',
-        ])->assertRedirect('/dashboard');
+        ])->assertRedirect('/email/verify');
 
+        $third = User::where('email', 'third@example.com')->firstOrFail();
+        $third->markEmailAsVerified();
+        $this->actingAs($third->fresh())->post('/api-key')->assertRedirect();
         $this->post('/logout')->assertRedirect('/');
 
         $this->post('/register', [
@@ -187,12 +243,15 @@ class SiteFlowTest extends TestCase
             'password' => 'long-enough-password',
             'password_confirmation' => 'long-enough-password',
             'plan' => 'personal',
-        ])->assertRedirect('/subscription?plan=personal');
+        ])->assertRedirect('/email/verify');
 
-        $first = User::where('email', 'first@example.com')->firstOrFail();
-        $second = User::where('email', 'second@example.com')->firstOrFail();
-        $third = User::where('email', 'third@example.com')->firstOrFail();
+        $fourth = User::where('email', 'fourth@example.com')->firstOrFail();
+        $fourth->markEmailAsVerified();
+        $this->actingAs($fourth->fresh())->post('/api-key')->assertRedirect();
 
+        $first->refresh();
+        $second->refresh();
+        $third->refresh();
         $this->assertSame($dayTier->id, $first->subscription_package_id);
         $this->assertEqualsWithDelta(now()->addDays(7)->timestamp, $first->trial_ends_at->timestamp, 5);
         $this->assertSame($monthTier->id, $second->subscription_package_id);
@@ -341,6 +400,23 @@ class SiteFlowTest extends TestCase
         $this->get('/dashboard')->assertRedirect('/login');
     }
 
+    public function test_dashboard_requires_a_verified_email_address(): void
+    {
+        $user = User::factory()->unverified()->create();
+
+        $this->actingAs($user)
+            ->get('/dashboard')
+            ->assertRedirect('/email/verify');
+
+        $this->actingAs($user)
+            ->get('/email/verify')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('VerifyEmail')
+                ->where('email', $user->email)
+            );
+    }
+
     public function test_download_page_is_public(): void
     {
         $this->get('/download')
@@ -351,7 +427,7 @@ class SiteFlowTest extends TestCase
             );
     }
 
-    public function test_a_user_can_create_a_paddle_subscription_checkout(): void
+    public function test_hidden_lifetime_packages_cannot_open_checkout(): void
     {
         $user = User::factory()->create();
         $user->customer()->create([
@@ -364,10 +440,8 @@ class SiteFlowTest extends TestCase
 
         $this->actingAs($user)
             ->postJson('/subscription/checkout', ['plan' => 'personal'])
-            ->assertOk()
-            ->assertJsonPath('checkout.items.0.priceId', 'pri_personal_test')
-            ->assertJsonPath('checkout.customer.id', 'ctm_test_123')
-            ->assertJsonPath('checkout.customData.subscription_type', 'default');
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('plan');
     }
 
     public function test_a_legacy_subscription_without_a_paddle_id_never_calls_the_swap_api(): void
@@ -559,8 +633,9 @@ class SiteFlowTest extends TestCase
         ]);
     }
 
-    public function test_registration_generates_a_hashed_activation_key(): void
+    public function test_verifying_email_unlocks_the_dashboard_and_generates_a_hashed_activation_key(): void
     {
+        Notification::fake();
         $response = $this->post('/register', [
             'name' => 'Grace Hopper',
             'email' => 'grace@example.com',
@@ -569,7 +644,24 @@ class SiteFlowTest extends TestCase
             'plan' => 'personal',
         ]);
 
-        $response->assertRedirect('/dashboard')->assertSessionHas('plain_api_key');
+        $response->assertRedirect('/email/verify');
+        $user = User::where('email', 'grace@example.com')->firstOrFail();
+        $this->assertFalse($user->hasVerifiedEmail());
+        $this->assertSame(0, $user->tokens()->count());
+        Notification::assertSentTo($user, VerifyEmail::class);
+
+        $verificationUrl = URL::temporarySignedRoute('verification.verify', now()->addMinutes(60), [
+            'id' => $user->getKey(),
+            'hash' => sha1($user->getEmailForVerification()),
+        ]);
+        $this->get($verificationUrl)->assertRedirect('/dashboard');
+        $this->assertTrue($user->fresh()->hasVerifiedEmail());
+
+        $dashboard = $this->get('/dashboard');
+        $dashboard->assertOk()->assertSessionMissing('plain_api_key');
+        $this->assertSame(0, $user->tokens()->count());
+
+        $this->post('/api-key')->assertRedirect()->assertSessionHas('plain_api_key');
         $plainText = session('plain_api_key');
         $token = Str::after($plainText, '|');
 
@@ -577,7 +669,7 @@ class SiteFlowTest extends TestCase
         $this->assertSame(38, strlen($token));
         $this->assertDatabaseHas('personal_access_tokens', [
             'tokenable_type' => User::class,
-            'tokenable_id' => User::where('email', 'grace@example.com')->value('id'),
+            'tokenable_id' => $user->id,
             'token' => hash('sha256', $token),
         ]);
         $this->assertDatabaseMissing('personal_access_tokens', ['token' => $plainText]);

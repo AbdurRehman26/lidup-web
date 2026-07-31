@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Services\ApiKeyService;
 use App\Services\SubscriptionPackageService;
 use App\Services\TrialService;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -19,7 +19,7 @@ class AuthController extends Controller
 {
     public function showRegister(Request $request, TrialService $trials, SubscriptionPackageService $packages): Response
     {
-        $plans = $packages->paidPlans();
+        $plans = $packages->paidPlans(false);
         $selectedPlan = array_key_exists($request->string('plan')->toString(), $plans)
             ? $request->string('plan')->toString()
             : array_key_first($plans);
@@ -27,7 +27,6 @@ class AuthController extends Controller
         $offer = $trials->currentOffer();
 
         return Inertia::render('Register', [
-            'plans' => $plans,
             'selectedPlan' => $selectedPlan,
             'trialOffer' => $trials->present($offer),
             'packages' => $trials->publicPackages()->map(fn ($package) => $trials->present($package))->values(),
@@ -36,15 +35,13 @@ class AuthController extends Controller
 
     public function register(
         Request $request,
-        ApiKeyService $apiKeys,
-        TrialService $trials,
         SubscriptionPackageService $packages,
     ): RedirectResponse {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:80'],
             'email' => ['required', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'confirmed', Password::min(8)],
-            'plan' => ['required', Rule::in(array_keys($packages->paidPlans()))],
+            'plan' => ['required', Rule::in(array_keys($packages->paidPlans(false)))],
         ]);
 
         $user = User::create([
@@ -53,19 +50,16 @@ class AuthController extends Controller
             'password' => Hash::make($validated['password']),
         ]);
 
-        $selectedPackage = $packages->paidPackages()->firstWhere('slug', $validated['plan']);
-        $trialAssigned = $trials->assignIfEligible($user, $selectedPackage->plan);
-        $createdKey = $apiKeys->create($user);
+        $selectedPackage = $packages->paidPackages(false)->firstWhere('slug', $validated['plan']);
+        $user->forceFill(['trial_plan' => $selectedPackage->plan])->save();
+        event(new Registered($user));
 
         Auth::login($user);
         $request->session()->regenerate();
 
         return redirect()
-            ->route($trialAssigned ? 'dashboard' : 'subscription.show', $trialAssigned ? [] : ['plan' => $validated['plan']])
-            ->with('plain_api_key', $createdKey['plain_text'])
-            ->with('api_key_message', $trialAssigned
-                ? 'Your free trial and activation key are ready. Copy the key now—it will only be shown once.'
-                : 'Your activation key is ready. Choose a plan to activate it.');
+            ->route('verification.notice')
+            ->with('status', 'account-created');
     }
 
     public function showLogin(): Response

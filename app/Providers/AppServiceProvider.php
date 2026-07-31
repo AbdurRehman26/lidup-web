@@ -2,8 +2,11 @@
 
 namespace App\Providers;
 
+use App\Contracts\TransactionalEmailSender;
+use App\Listeners\GrantLifetimePurchase;
 use App\Listeners\SyncPaddleSubscription;
 use App\Models\Subscription;
+use App\Services\Mail\LaravelTransactionalEmailSender;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Paddle\Cashier;
@@ -11,6 +14,7 @@ use Laravel\Paddle\Events\SubscriptionCanceled;
 use Laravel\Paddle\Events\SubscriptionCreated;
 use Laravel\Paddle\Events\SubscriptionPaused;
 use Laravel\Paddle\Events\SubscriptionUpdated;
+use Laravel\Paddle\Events\TransactionCompleted;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,7 +23,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(
+            TransactionalEmailSender::class,
+            LaravelTransactionalEmailSender::class,
+        );
     }
 
     /**
@@ -45,5 +52,6 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(SubscriptionUpdated::class, SyncPaddleSubscription::class);
         Event::listen(SubscriptionPaused::class, SyncPaddleSubscription::class);
         Event::listen(SubscriptionCanceled::class, SyncPaddleSubscription::class);
+        Event::listen(TransactionCompleted::class, GrantLifetimePurchase::class);
     }
 }

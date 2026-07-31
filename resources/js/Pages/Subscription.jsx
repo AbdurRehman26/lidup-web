@@ -8,25 +8,16 @@ export default function Subscription({ subscription, plans, billingConfigured })
     const subscribedPlan = Object.entries(plans).find(([, plan]) => plan.plan === subscription?.plan)?.[0];
     const initialPlan = plans[queryPlan] ? queryPlan : (subscribedPlan ?? Object.keys(plans)[0]);
     const form = useForm({ plan: initialPlan });
-    const [billingInterval, setBillingInterval] = useState(plans[initialPlan]?.billing_interval ?? 'month');
     const [checkoutLoading, setCheckoutLoading] = useState(false);
     const [checkoutError, setCheckoutError] = useState('');
     const hasSubscription = Boolean(subscription?.paddle_id)
         && ['active', 'trialing', 'past_due'].includes(subscription?.status);
-    const visiblePlans = Object.entries(plans).filter(([, plan]) => plan.billing_interval === billingInterval);
-
-    const changeBilling = (interval) => {
-        setBillingInterval(interval);
-        const currentTier = plans[form.data.plan]?.plan;
-        const replacement = Object.entries(plans).find(([, plan]) => plan.billing_interval === interval && plan.plan === currentTier)
-            ?? Object.entries(plans).find(([, plan]) => plan.billing_interval === interval);
-        if (replacement) form.setData('plan', replacement[0]);
-    };
+    const visiblePlans = Object.entries(plans);
 
     const save = async (event) => {
         event.preventDefault();
 
-        if (hasSubscription) {
+        if (hasSubscription && plans[form.data.plan]?.billing_interval !== 'one_time') {
             form.patch('/subscription', { preserveScroll: true });
             return;
         }
@@ -83,18 +74,17 @@ export default function Subscription({ subscription, plans, billingConfigured })
                         <div><span className={`status-dot ${subscription?.status === 'canceled' ? 'canceled' : ''}`} /><div><small>Current status</small><b>{subscription?.status ?? 'inactive'}</b></div></div>
                         <span>{subscription?.trial_ends_at ? `Trial ends ${formatDate(subscription.trial_ends_at)}` : 'No active trial'}</span>
                     </div>
-                    <BillingToggle value={billingInterval} onChange={changeBilling} />
                     <div className="subscription-options">
                         {visiblePlans.map(([key, plan]) => (
                             <label className={form.data.plan === key ? 'selected' : ''} key={key}>
                                 <input type="radio" name="plan" value={key} checked={form.data.plan === key} onChange={(event) => form.setData('plan', event.target.value)} />
                                 <span><b>{plan.name}</b><small>{plan.devices} {plan.devices === 1 ? 'Mac' : 'Macs'}</small></span>
-                                <strong>{formatMoney(plan.price, plan.currency)}<small>/{plan.interval}</small></strong>
+                                <strong>{formatMoney(plan.price, plan.currency)}{plan.original_price && <del>{formatMoney(plan.original_price, plan.currency)}</del>}<small> one-time</small></strong>
                             </label>
                         ))}
                     </div>
                     <button className="button" type="submit" disabled={form.processing || checkoutLoading || !billingConfigured || !plans[form.data.plan]?.paddle_price_id}>
-                        {checkoutLoading ? 'Opening secure checkout…' : hasSubscription ? 'Update plan' : 'Continue to secure checkout'}
+                        {checkoutLoading ? 'Opening secure checkout…' : 'Purchase lifetime access'}
                     </button>
                     {(form.errors.plan || checkoutError) && <p className="form-error">{form.errors.plan || checkoutError}</p>}
                 </form>
@@ -105,10 +95,6 @@ export default function Subscription({ subscription, plans, billingConfigured })
             </section>
         </SiteLayout>
     );
-}
-
-function BillingToggle({ value, onChange }) {
-    return <div className="billing-toggle is-compact"><button className={value === 'month' ? 'is-selected' : ''} type="button" onClick={() => onChange('month')}>Monthly</button><button className={value === 'year' ? 'is-selected' : ''} type="button" onClick={() => onChange('year')}>Yearly · save 2 months</button></div>;
 }
 
 const formatDate = (value) => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(value));

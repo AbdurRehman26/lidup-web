@@ -32,6 +32,24 @@ npm run build
 vendor/bin/pint --test
 ```
 
+## Transactional email
+
+Production email is delivered through Laravel's mail abstraction with Resend as
+the configured transport. Add a newly generated Resend key and a sender address
+from a verified domain to the production environment:
+
+```dotenv
+MAIL_MAILER=resend
+MAIL_FROM_ADDRESS=notifications@lidup.app
+MAIL_FROM_NAME=LidUp
+RESEND_API_KEY=
+```
+
+After changing production environment variables, run `php artisan optimize:clear`.
+Application services should depend on `App\Contracts\TransactionalEmailSender`
+instead of calling a provider SDK directly. This keeps future provider changes
+isolated to configuration or a replacement adapter.
+
 ## Billing
 
 The subscription data model is ready for a payment provider, but checkout and

@@ -42,6 +42,7 @@ class SubscriptionPackageForm
                             ->options([
                                 'days' => 'Days',
                                 'months' => 'Months',
+                                'lifetime' => 'Lifetime',
                                 'unlimited' => 'Unlimited',
                             ])
                             ->default('days')
@@ -67,12 +68,18 @@ class SubscriptionPackageForm
                             ->numeric()
                             ->minValue(0)
                             ->helperText('Enter the amount in the currency selected beside it.'),
+                        TextInput::make('original_price')
+                            ->label('Original price')
+                            ->numeric()
+                            ->minValue(0)
+                            ->helperText('Optional crossed-out price shown beside the current price.'),
                         TextInput::make('currency')->default('EUR')->maxLength(3)->required(),
                         Select::make('billing_interval')
                             ->label('Billing interval')
                             ->options([
                                 'month' => 'Monthly',
                                 'year' => 'Yearly',
+                                'one_time' => 'One-time',
                             ])
                             ->default('month')
                             ->required(),

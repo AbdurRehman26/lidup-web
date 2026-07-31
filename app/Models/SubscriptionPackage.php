@@ -43,6 +43,7 @@ class SubscriptionPackage extends Model
     {
         return match ($this->duration_unit) {
             'unlimited' => 'Unlimited',
+            'lifetime' => 'Lifetime',
             'months' => $this->duration_value.' '.str('month')->plural($this->duration_value),
             default => $this->duration_value.' '.str('day')->plural($this->duration_value),
         };
@@ -55,6 +56,7 @@ class SubscriptionPackage extends Model
             'is_active' => 'boolean',
             'is_visible' => 'boolean',
             'price' => 'decimal:2',
+            'original_price' => 'decimal:2',
             'device_limit' => 'integer',
             'user_limit' => 'integer',
             'duration_value' => 'integer',

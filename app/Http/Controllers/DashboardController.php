@@ -4,8 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ProductUpdate;
 use App\Models\Release;
-use App\Services\ApiKeyService;
-use App\Services\SubscriptionPackageService;
+use App\Services\TrialService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -13,17 +12,12 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request, ApiKeyService $apiKeys, SubscriptionPackageService $packages): Response
+    public function __invoke(Request $request, TrialService $trials): Response
     {
         $request->user()->load('subscriptionPackage');
+        $assignedPackage = $request->user()->subscriptionPackage;
+        $assignedUsersCount = $assignedPackage?->users()->count();
         $activeKey = $request->user()->tokens()->latest()->first();
-
-        if (! $activeKey) {
-            $created = $apiKeys->create($request->user());
-            $activeKey = $created['key'];
-            session()->flash('plain_api_key', $created['plain_text']);
-            session()->flash('api_key_message', 'Your activation key is ready. Copy it now—it will only be shown once.');
-        }
 
         $latestRelease = Release::query()
             ->available()
@@ -40,21 +34,32 @@ class DashboardController extends Controller
                 'started_at' => $request->user()->trial_started_at,
                 'ends_at' => $request->user()->trial_ends_at,
                 'cohort_position' => $request->user()->trial_cohort_position,
-                'package' => $request->user()->subscriptionPackage ? [
-                    'name' => $request->user()->subscriptionPackage->name,
-                    'description' => $request->user()->subscriptionPackage->description,
-                    'duration' => $request->user()->subscriptionPackage->durationLabel(),
-                    'device_limit' => $request->user()->subscriptionPackage->device_limit,
-                    'is_paid' => $request->user()->subscriptionPackage->is_paid,
-                    'is_active' => $request->user()->subscriptionPackage->is_active,
-                    'is_visible' => $request->user()->subscriptionPackage->is_visible,
+                'package' => $assignedPackage ? [
+                    'id' => $assignedPackage->id,
+                    'slug' => $assignedPackage->slug,
+                    'name' => $assignedPackage->name,
+                    'description' => $assignedPackage->description,
+                    'duration' => $assignedPackage->durationLabel(),
+                    'device_limit' => $assignedPackage->device_limit,
+                    'user_limit' => $assignedPackage->user_limit,
+                    'users_count' => $assignedUsersCount,
+                    'remaining_spots' => $assignedPackage->user_limit === null
+                        ? null
+                        : max(0, $assignedPackage->user_limit - $assignedUsersCount),
+                    'is_paid' => $assignedPackage->is_paid,
+                    'is_active' => $assignedPackage->is_active,
+                    'is_visible' => $assignedPackage->is_visible,
                 ] : null,
             ],
-            'plans' => $packages->paidPlans(),
+            'earlyBirdPackages' => $trials->publicPackages()
+                ->where('is_paid', false)
+                ->map(fn ($package) => $trials->present($package))
+                ->values(),
             'apiKey' => [
                 'prefix' => 'lidup_',
-                'created_at' => $activeKey->created_at,
-                'last_used_at' => $activeKey->last_used_at,
+                'exists' => $activeKey !== null,
+                'created_at' => $activeKey?->created_at,
+                'last_used_at' => $activeKey?->last_used_at,
             ],
             'activations' => $request->user()->appActivations()
                 ->active()

@@ -15,9 +15,13 @@ class SubscriptionController extends Controller
 {
     public function __construct(private readonly SubscriptionPackageService $packages) {}
 
-    public function show(Request $request): Response
+    public function show(Request $request): Response|RedirectResponse
     {
         $plans = $this->packages->paidPlans();
+
+        if ($plans === []) {
+            return redirect()->route('dashboard');
+        }
 
         return Inertia::render('Subscription', [
             'subscription' => $request->user()->appSubscription,
@@ -29,6 +33,14 @@ class SubscriptionController extends Controller
     public function checkout(Request $request): JsonResponse
     {
         $plans = $this->packages->paidPlans();
+
+        if ($plans === []) {
+            return response()->json([
+                'message' => 'Paid packages are not available during early access.',
+                'errors' => ['plan' => ['Paid packages are not available during early access.']],
+            ], 422);
+        }
+
         $validated = $request->validate(['plan' => ['required', Rule::in(array_keys($plans))]]);
         $priceId = $plans[$validated['plan']]['paddle_price_id'];
 
@@ -38,16 +50,9 @@ class SubscriptionController extends Controller
             ]);
         }
 
-        $subscription = $request->user()->subscription('default');
-
-        if ($subscription?->paddle_id && $subscription->valid()) {
-            throw ValidationException::withMessages([
-                'plan' => 'You already have a subscription. Change your existing plan instead.',
-            ]);
-        }
-
         $checkout = $request->user()
-            ->subscribe($priceId, 'default')
+            ->checkout($priceId)
+            ->customData(['package_slug' => $validated['plan']])
             ->returnTo(route('dashboard', ['checkout' => 'success']));
 
         return response()->json(['checkout' => $checkout->options()]);

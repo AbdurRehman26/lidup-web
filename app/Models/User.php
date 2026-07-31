@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,7 +20,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 #[Fillable(['name', 'email', 'password'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable implements FilamentUser
+class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use Billable, HasApiTokens, HasFactory, Notifiable;
@@ -69,7 +69,7 @@ class User extends Authenticatable implements FilamentUser
 
     public function onAppTrial(): bool
     {
-        if ($this->subscriptionPackage?->duration_unit === 'unlimited') {
+        if (in_array($this->subscriptionPackage?->duration_unit, ['unlimited', 'lifetime'], true)) {
             return true;
         }
 
@@ -91,6 +91,10 @@ class User extends Authenticatable implements FilamentUser
 
     public function entitlementStatus(): string
     {
+        if ($this->subscriptionPackage?->duration_unit === 'lifetime') {
+            return 'active';
+        }
+
         if ($this->appSubscription?->isEntitled() === true) {
             return $this->appSubscription->status;
         }

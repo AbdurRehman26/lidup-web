@@ -14,7 +14,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user()?->only('id', 'name', 'email', 'created_at'),
+                'user' => $request->user()?->only('id', 'name', 'email', 'email_verified_at', 'created_at'),
             ],
             'flash' => [
                 'subscription_updated' => fn () => $request->session()->get('subscription_updated'),

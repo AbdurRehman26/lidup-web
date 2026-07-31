@@ -5,16 +5,15 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeviceController;
 use App\Http\Controllers\DownloadController;
+use App\Http\Controllers\EmailVerificationController;
 use App\Http\Controllers\SubscriptionController;
-use App\Services\SubscriptionPackageService;
 use App\Services\TrialService;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/', fn (TrialService $trials, SubscriptionPackageService $packages) => Inertia::render('Home', [
+Route::get('/', fn (TrialService $trials) => Inertia::render('Home', [
     'trialOffer' => $trials->present($trials->currentOffer()),
     'packages' => $trials->publicPackages()->map(fn ($package) => $trials->present($package))->values(),
-    'paidPlans' => $packages->paidPlans(),
 ]))->name('home');
 Route::get('/faqs', fn () => Inertia::render('Faqs'))->name('faqs');
 Route::get('/download', [DownloadController::class, 'index'])->name('download');
@@ -30,14 +29,25 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware('auth')->group(function () {
-    Route::get('/dashboard', DashboardController::class)->name('dashboard');
-    Route::get('/subscription', [SubscriptionController::class, 'show'])->name('subscription.show');
-    Route::post('/subscription/checkout', [SubscriptionController::class, 'checkout'])->name('subscription.checkout');
-    Route::patch('/subscription', [SubscriptionController::class, 'update'])->name('subscription.update');
-    Route::delete('/subscription', [SubscriptionController::class, 'cancel'])->name('subscription.cancel');
-    Route::post('/api-key', [ApiKeyController::class, 'store'])->name('api-key.store');
-    Route::put('/api-key', [ApiKeyController::class, 'rotate'])->name('api-key.rotate');
-    Route::delete('/api-key', [ApiKeyController::class, 'destroy'])->name('api-key.destroy');
-    Route::delete('/devices/{activation}', [DeviceController::class, 'destroy'])->name('devices.destroy');
+    Route::get('/email/verify', [EmailVerificationController::class, 'notice'])->name('verification.notice');
+    Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
+        ->middleware(['signed', 'throttle:6,1'])
+        ->name('verification.verify');
+    Route::post('/email/verification-notification', [EmailVerificationController::class, 'send'])
+        ->middleware('throttle:6,1')
+        ->name('verification.send');
+
+    Route::middleware('verified')->group(function () {
+        Route::get('/dashboard', DashboardController::class)->name('dashboard');
+        Route::get('/subscription', [SubscriptionController::class, 'show'])->name('subscription.show');
+        Route::post('/subscription/checkout', [SubscriptionController::class, 'checkout'])->name('subscription.checkout');
+        Route::patch('/subscription', [SubscriptionController::class, 'update'])->name('subscription.update');
+        Route::delete('/subscription', [SubscriptionController::class, 'cancel'])->name('subscription.cancel');
+        Route::post('/api-key', [ApiKeyController::class, 'store'])->name('api-key.store');
+        Route::put('/api-key', [ApiKeyController::class, 'rotate'])->name('api-key.rotate');
+        Route::delete('/api-key', [ApiKeyController::class, 'destroy'])->name('api-key.destroy');
+        Route::delete('/devices/{activation}', [DeviceController::class, 'destroy'])->name('devices.destroy');
+    });
+
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 });

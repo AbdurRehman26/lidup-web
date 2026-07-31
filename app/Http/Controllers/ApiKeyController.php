@@ -3,18 +3,40 @@
 namespace App\Http\Controllers;
 
 use App\Services\ApiKeyService;
+use App\Services\TrialService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ApiKeyController extends Controller
 {
-    public function store(Request $request, ApiKeyService $apiKeys): RedirectResponse
+    public function store(Request $request, ApiKeyService $apiKeys, TrialService $trials): RedirectResponse
     {
-        $created = $apiKeys->create($request->user());
+        $result = DB::transaction(function () use ($request, $apiKeys, $trials): ?array {
+            $user = $request->user()->newQuery()->lockForUpdate()->findOrFail($request->user()->getKey());
+
+            if ($user->tokens()->exists()) {
+                return null;
+            }
+
+            $trialAssigned = $user->onAppTrial()
+                || $trials->assignIfEligible($user, $user->trial_plan ?? 'personal');
+
+            return [
+                'trial_assigned' => $trialAssigned,
+                'key' => $apiKeys->create($user),
+            ];
+        });
+
+        if ($result === null) {
+            return back()->with('api_key_message', 'Your account already has an activation key.');
+        }
 
         return back()
-            ->with('plain_api_key', $created['plain_text'])
-            ->with('api_key_message', 'Your activation key was created. Copy it now.');
+            ->with('plain_api_key', $result['key']['plain_text'])
+            ->with('api_key_message', $result['trial_assigned']
+                ? 'Your activation key and early-bird access are ready. Copy the key now.'
+                : 'Your activation key was created, but no early-bird places are currently available.');
     }
 
     public function rotate(Request $request, ApiKeyService $apiKeys): RedirectResponse
