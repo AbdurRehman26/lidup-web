@@ -40,7 +40,7 @@ from a verified domain to the production environment:
 
 ```dotenv
 MAIL_MAILER=resend
-MAIL_FROM_ADDRESS=notifications@lidup.app
+MAIL_FROM_ADDRESS=notifications@mg.lidup.app
 MAIL_FROM_NAME=LidUp
 RESEND_API_KEY=
 ```
