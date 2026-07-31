@@ -35,7 +35,7 @@ class DashboardController extends Controller
             'trial' => [
                 'active' => $request->user()->onAppTrial(),
                 'status' => $request->user()->entitlementStatus(),
-                'plan' => $request->user()->trial_plan,
+                'plan' => $request->user()->entitlementPlan(),
                 'started_at' => $request->user()->trial_started_at,
                 'ends_at' => $request->user()->trial_ends_at,
                 'cohort_position' => $request->user()->trial_cohort_position,

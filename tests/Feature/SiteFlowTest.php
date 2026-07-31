@@ -195,8 +195,8 @@ class SiteFlowTest extends TestCase
         $package = SubscriptionPackage::where('slug', 'admin-unlimited')->firstOrFail();
         $user = User::factory()->create([
             'subscription_package_id' => $package->id,
-            'trial_plan' => 'pro',
-            'trial_started_at' => now(),
+            'trial_plan' => null,
+            'trial_started_at' => null,
             'trial_ends_at' => null,
         ]);
 
@@ -206,6 +206,7 @@ class SiteFlowTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Dashboard')
                 ->where('trial.active', true)
+                ->where('trial.plan', 'pro')
                 ->where('trial.package.name', 'Admin Unlimited')
                 ->where('trial.package.duration', 'Unlimited')
                 ->where('trial.package.is_active', false)

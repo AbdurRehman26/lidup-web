@@ -69,6 +69,10 @@ class User extends Authenticatable implements FilamentUser
 
     public function onAppTrial(): bool
     {
+        if ($this->subscriptionPackage?->duration_unit === 'unlimited') {
+            return true;
+        }
+
         return $this->trial_started_at !== null
             && ($this->trial_ends_at === null || $this->trial_ends_at->isFuture());
     }
@@ -82,7 +86,7 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->appSubscription?->isEntitled() === true
             ? $this->appSubscription->plan
-            : ($this->onAppTrial() ? $this->trial_plan : null);
+            : ($this->onAppTrial() ? ($this->trial_plan ?? $this->subscriptionPackage?->plan) : null);
     }
 
     public function entitlementStatus(): string
