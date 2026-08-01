@@ -2,7 +2,7 @@
     "openapi": "3.0.0",
     "info": {
         "title": "LidUp API",
-        "description": "Validate LidUp license keys and manage Mac device activations.",
+        "description": "Validate LidUp license keys, manage Mac device activations, report completed tasks, and check for app updates.",
         "version": "1.0.0"
     },
     "servers": [
@@ -275,6 +275,73 @@
                 ]
             }
         },
+        "/releases/latest": {
+            "get": {
+                "tags": [
+                    "Releases"
+                ],
+                "summary": "Get the latest macOS release",
+                "description": "Returns public update metadata for the latest published LidUp build. No account or activation key is required.",
+                "operationId": "getLatestRelease",
+                "responses": {
+                    "200": {
+                        "description": "The latest published release metadata.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "required": [
+                                        "version",
+                                        "minimum_os",
+                                        "release_notes",
+                                        "published_at",
+                                        "download_url",
+                                        "available"
+                                    ],
+                                    "properties": {
+                                        "version": {
+                                            "type": "string",
+                                            "example": "1.2.0"
+                                        },
+                                        "minimum_os": {
+                                            "type": "string",
+                                            "example": "macOS 14 Sonoma"
+                                        },
+                                        "release_notes": {
+                                            "type": "string",
+                                            "example": "Update checking and reliability improvements.",
+                                            "nullable": true
+                                        },
+                                        "published_at": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "example": "2026-08-01T10:30:00+00:00",
+                                            "nullable": true
+                                        },
+                                        "download_url": {
+                                            "type": "string",
+                                            "format": "uri",
+                                            "example": "https://lidup.app/download/latest"
+                                        },
+                                        "available": {
+                                            "description": "Whether the installer currently exists in release storage.",
+                                            "type": "boolean",
+                                            "example": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No published current release exists."
+                    },
+                    "429": {
+                        "description": "Too many update checks."
+                    }
+                }
+            }
+        },
         "/webhooks/task-completed": {
             "post": {
                 "tags": [
@@ -399,6 +466,10 @@
         {
             "name": "Tasks",
             "description": "Task completion notifications"
+        },
+        {
+            "name": "Releases",
+            "description": "Public macOS app update metadata"
         }
     ]
 }

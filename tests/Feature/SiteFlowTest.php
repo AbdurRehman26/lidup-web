@@ -331,6 +331,13 @@ class SiteFlowTest extends TestCase
         $this->assertArrayHasKey('/activation/verify', $document['paths']);
         $this->assertArrayHasKey('/activation/{deviceId}', $document['paths']);
         $this->assertArrayHasKey('/webhooks/task-completed', $document['paths']);
+        $this->assertArrayHasKey('/releases/latest', $document['paths']);
+        $this->assertArrayHasKey('get', $document['paths']['/releases/latest']);
+        $this->assertArrayNotHasKey('security', $document['paths']['/releases/latest']['get']);
+        $this->assertSame(
+            'uri',
+            $document['paths']['/releases/latest']['get']['responses']['200']['content']['application/json']['schema']['properties']['download_url']['format'],
+        );
 
         $this->get('/api/documentation')
             ->assertOk()
@@ -482,6 +489,31 @@ class SiteFlowTest extends TestCase
             'release_id' => $release->id,
             'user_id' => null,
         ]);
+    }
+
+    public function test_latest_release_metadata_is_public_for_app_update_checks(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('releases/LidUp-1.2.0.dmg', 'signed-release');
+
+        Release::create([
+            'version' => '1.2.0',
+            'file_path' => 'releases/LidUp-1.2.0.dmg',
+            'minimum_os' => 'macOS 14 Sonoma',
+            'release_notes' => 'Update checking and reliability improvements.',
+            'is_current' => true,
+            'published_at' => now(),
+        ]);
+
+        $this->getJson('/api/v1/releases/latest')
+            ->assertOk()
+            ->assertJsonPath('version', '1.2.0')
+            ->assertJsonPath('minimum_os', 'macOS 14 Sonoma')
+            ->assertJsonPath('available', true)
+            ->assertJsonPath('sha256', hash('sha256', 'signed-release'))
+            ->assertJsonPath('download_url', route('download.latest'));
+
+        $this->assertGuest();
     }
 
     public function test_uploading_a_latest_build_calculates_metadata_and_replaces_the_previous_latest_build(): void

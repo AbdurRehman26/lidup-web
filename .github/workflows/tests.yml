@@ -1,0 +1,66 @@
+name: tests
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+  pull_request:
+    branches:
+      - develop
+      - main
+
+jobs:
+  ci:
+    name: Build and test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: dom, fileinfo, mbstring, pdo_sqlite
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Cache Composer packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.composer/cache/files
+          key: composer-${{ runner.os }}-php83-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            composer-${{ runner.os }}-php83-
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare Laravel
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      - name: Build Assets
+        run: npm run build
+
+      - name: Check PHP formatting
+        run: vendor/bin/pint --test
+
+      - name: Tests
+        run: composer test

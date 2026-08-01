@@ -1,0 +1,76 @@
+name: Deploy Laravel App
+
+on:
+  workflow_run:
+    workflows:
+      - tests
+    branches:
+      - main
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy production
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://lidup.app
+    env:
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      DEPLOY_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.5
+        env:
+          DEPLOY_SHA: ${{ env.DEPLOY_SHA }}
+          DEPLOY_URL: ${{ env.DEPLOY_URL }}
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          port: ${{ vars.SSH_PORT || 22 }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          fingerprint: ${{ secrets.SSH_FINGERPRINT }}
+          envs: DEPLOY_SHA,DEPLOY_URL
+          command_timeout: 15m
+          script: |
+            set -e
+            cd /var/www/lidup-web
+
+            php artisan down --retry=60
+            trap 'php artisan up' EXIT
+
+            git fetch origin main
+            git merge --ff-only "$DEPLOY_SHA"
+            composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+            npm ci
+            npm run build
+            npm prune --omit=dev
+
+            php artisan migrate --force
+            test -L public/storage || php artisan storage:link
+            php artisan optimize:clear
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            php artisan queue:restart
+
+            if php artisan list --raw | grep -q '^nightwatch:deploy'; then
+              php artisan nightwatch:deploy "$DEPLOY_SHA" --ref="$DEPLOY_SHA" --name="GitHub deployment" --url="$DEPLOY_URL"
+            fi
+
+            php artisan up
+            trap - EXIT

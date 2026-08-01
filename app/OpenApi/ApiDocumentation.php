@@ -7,7 +7,7 @@ use OpenApi\Attributes as OA;
 #[OA\Info(
     version: '1.0.0',
     title: 'LidUp API',
-    description: 'Validate LidUp license keys and manage Mac device activations.',
+    description: 'Validate LidUp license keys, manage Mac device activations, report completed tasks, and check for app updates.',
 )]
 #[OA\Server(
     url: '/api/v1',
@@ -31,5 +31,9 @@ use OpenApi\Attributes as OA;
 #[OA\Tag(
     name: 'Tasks',
     description: 'Task completion notifications',
+)]
+#[OA\Tag(
+    name: 'Releases',
+    description: 'Public macOS app update metadata',
 )]
 class ApiDocumentation {}

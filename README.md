@@ -50,6 +50,39 @@ Application services should depend on `App\Contracts\TransactionalEmailSender`
 instead of calling a provider SDK directly. This keeps future provider changes
 isolated to configuration or a replacement adapter.
 
+## Monitoring
+
+Laravel Nightwatch is configured through environment variables. Keep it disabled
+locally and enable it in production after adding the environment token:
+
+```dotenv
+NIGHTWATCH_TOKEN=
+NIGHTWATCH_ENABLED=true
+NIGHTWATCH_REQUEST_SAMPLE_RATE=0.1
+NIGHTWATCH_COMMAND_SAMPLE_RATE=1.0
+NIGHTWATCH_EXCEPTION_SAMPLE_RATE=1.0
+```
+
+On a Linux server, run `php artisan nightwatch:agent` as a continuously managed
+background process. Restart that process after each deployment.
+
+## GitHub deployment
+
+Create a GitHub environment named `production`, restrict it to the `main` branch,
+and add these environment secrets:
+
+- `SERVER_IP`: production server hostname or IP address
+- `SSH_USER`: SSH user that owns or can update `/var/www/lidup-web`
+- `SSH_KEY`: private SSH key for that user
+- `SSH_FINGERPRINT`: SHA256 fingerprint of the production SSH host key
+
+If SSH does not use port 22, add an environment variable named `SSH_PORT`.
+
+The deployment workflow runs only after the `tests` workflow succeeds on `main`.
+It deploys the exact tested commit, installs production dependencies, builds the
+React frontend, migrates the database, refreshes Laravel caches, restarts queue
+workers, and reports the release to Nightwatch when Nightwatch is installed.
+
 ## Billing
 
 The subscription data model is ready for a payment provider, but checkout and

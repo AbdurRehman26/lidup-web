@@ -2,8 +2,12 @@
 
 use App\Http\Controllers\Api\ActivationController;
 use App\Http\Controllers\Api\LicenseController;
+use App\Http\Controllers\Api\ReleaseController;
 use App\Http\Controllers\Api\TaskCompletionWebhookController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/v1/releases/latest', [ReleaseController::class, 'latest'])
+    ->middleware('throttle:60,1');
 
 Route::prefix('v1')
     ->middleware(['throttle:60,1', 'auth:sanctum'])
