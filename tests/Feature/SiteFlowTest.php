@@ -59,6 +59,9 @@ class SiteFlowTest extends TestCase
     {
         $this->get('/')
             ->assertOk()
+            ->assertSee('property="og:image"', false)
+            ->assertSee('/marketing/social-share.jpg', false)
+            ->assertSee('name="twitter:card" content="summary_large_image"', false)
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Home')
                 ->where('auth.user', null)
