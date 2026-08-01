@@ -1,12 +1,13 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import SiteLayout from '../Layouts/SiteLayout';
 
 export default function Dashboard({ subscription, trial, earlyBirdPackages = [], apiKey, activations, latestRelease, updates }) {
     const { auth, flash } = usePage().props;
     const [copied, setCopied] = useState(false);
+    const [showRotateModal, setShowRotateModal] = useState(false);
     const user = auth.user;
-    const visibleKey = flash.plain_api_key;
+    const visibleKey = flash.plain_api_key ?? apiKey.plain_text;
     const hasApiKey = apiKey.exists;
     const currentPlan = subscription?.plan ?? (trial?.active ? trial.plan : null);
     const active = (Boolean(subscription?.paddle_id) && ['active', 'trialing'].includes(subscription?.status))
@@ -20,11 +21,19 @@ export default function Dashboard({ subscription, trial, earlyBirdPackages = [],
         window.setTimeout(() => setCopied(false), 1800);
     };
 
-    const rotateKey = () => {
-        if (window.confirm('Generate a new key? Your current key and connected devices will stop working.')) {
-            router.put('/api-key', {}, { preserveScroll: true });
-        }
+    const rotateKey = () => setShowRotateModal(true);
+
+    const confirmRotateKey = () => {
+        setShowRotateModal(false);
+        router.put('/api-key', {}, { preserveScroll: true });
     };
+
+    useEffect(() => {
+        if (!showRotateModal) return undefined;
+        const closeOnEscape = (event) => event.key === 'Escape' && setShowRotateModal(false);
+        document.addEventListener('keydown', closeOnEscape);
+        return () => document.removeEventListener('keydown', closeOnEscape);
+    }, [showRotateModal]);
 
     const generateKey = () => router.post('/api-key', {}, { preserveScroll: true });
 
@@ -78,20 +87,6 @@ export default function Dashboard({ subscription, trial, earlyBirdPackages = [],
                     </section>
                 )}
 
-                <section className="dashboard-early-bird-tiers" aria-label="Early-bird tiers">
-                    <header><div><p className="eyebrow">Early-bird access</p><h2>Access tiers</h2></div><span>Paid packages are not open yet</span></header>
-                    <div>
-                        {earlyBirdPackages.map((tier) => (
-                            <article className={trial?.package?.id === tier.id ? 'is-current' : ''} key={tier.id}>
-                                <span>{trial?.package?.id === tier.id ? 'Your tier' : tier.id === earlyBirdPackages.find((item) => item.remaining_spots === null || item.remaining_spots > 0)?.id ? 'Open now' : 'Upcoming'}</span>
-                                <h3>{tier.name}</h3>
-                                <strong>{tier.duration_label} free</strong>
-                                <small>{tier.remaining_spots === null ? 'Unlimited places' : `${tier.remaining_spots} of ${tier.user_limit} places remaining`}</small>
-                            </article>
-                        ))}
-                    </div>
-                </section>
-
                 <section className="license-wallet">
                     <header className="license-wallet-head">
                         <div>
@@ -137,7 +132,12 @@ export default function Dashboard({ subscription, trial, earlyBirdPackages = [],
                                 {visibleKey ? (copied ? 'Copied' : <CopyIcon />) : hasApiKey ? 'Generate new key' : 'Generate key'}
                             </button>
                         </div>
-                        {!visibleKey && <p>{hasApiKey ? 'For security, the full key is shown only when it is first generated.' : 'Generating a key claims your early-bird place and starts its access period.'}</p>}
+                        {visibleKey
+                            ? <p>Your key is encrypted and only shown inside your signed-in account. Keep it private.</p>
+                            : hasApiKey
+                                ? <p>This older key cannot be recovered. Generate a new key to make it visible here.</p>
+                                : <p>Generating a key claims your early-bird place and starts its access period.</p>}
+                        {hasApiKey && visibleKey && <button className="license-rotate-link" type="button" onClick={rotateKey}>Generate a new key</button>}
                     </div>
 
                     <dl className="license-facts">
@@ -188,6 +188,23 @@ export default function Dashboard({ subscription, trial, earlyBirdPackages = [],
                         <time>{formatDate(updates[0].published_at)}</time>
                     </section>
                 )}
+
+                {showRotateModal && (
+                    <div className="key-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setShowRotateModal(false)}>
+                        <section className="key-modal" role="dialog" aria-modal="true" aria-labelledby="key-modal-title" aria-describedby="key-modal-description">
+                            <button className="key-modal-close" type="button" onClick={() => setShowRotateModal(false)} aria-label="Close confirmation">×</button>
+                            <div className="key-modal-signal" aria-hidden="true"><KeyIcon /><i /></div>
+                            <p className="eyebrow">Activation security</p>
+                            <h2 id="key-modal-title">Replace your activation key?</h2>
+                            <p id="key-modal-description">Your current key will stop working immediately. Every connected Mac will be signed out and must be activated again with the new key.</p>
+                            <div className="key-modal-warning"><span>!</span><p><b>This cannot be undone</b><small>The new key will remain visible on this dashboard.</small></p></div>
+                            <div className="key-modal-actions">
+                                <button className="secondary-button" type="button" onClick={() => setShowRotateModal(false)} autoFocus>Keep current key</button>
+                                <button className="button" type="button" onClick={confirmRotateKey}>Generate new key</button>
+                            </div>
+                        </section>
+                    </div>
+                )}
             </div>
         </SiteLayout>
     );
@@ -195,6 +212,9 @@ export default function Dashboard({ subscription, trial, earlyBirdPackages = [],
 
 function CheckIcon() {
     return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 12 3 3 7-7" /><circle cx="12" cy="12" r="9" /></svg>;
+}
+function KeyIcon() {
+    return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="12" r="4" /><path d="M12 12h9m-3 0v3m-3-3v2" /></svg>;
 }
 function CopyIcon() {
     return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></svg>;

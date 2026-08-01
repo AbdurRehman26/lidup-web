@@ -17,7 +17,10 @@ class DashboardController extends Controller
         $request->user()->load('subscriptionPackage');
         $assignedPackage = $request->user()->subscriptionPackage;
         $assignedUsersCount = $assignedPackage?->users()->count();
-        $activeKey = $request->user()->tokens()->latest()->first();
+        $activeKey = $request->user()->tokens()
+            ->orderByRaw('display_token is null')
+            ->latest()
+            ->first();
 
         $latestRelease = Release::query()
             ->available()
@@ -58,6 +61,7 @@ class DashboardController extends Controller
             'apiKey' => [
                 'prefix' => 'lidup_',
                 'exists' => $activeKey !== null,
+                'plain_text' => $activeKey?->display_token,
                 'created_at' => $activeKey?->created_at,
                 'last_used_at' => $activeKey?->last_used_at,
             ],

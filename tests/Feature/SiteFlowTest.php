@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Listeners\GrantLifetimePurchase;
+use App\Models\FeedbackItem;
 use App\Models\Release;
 use App\Models\SubscriptionPackage;
 use App\Models\TaskCompletionEvent;
@@ -15,6 +16,7 @@ use Database\Seeders\AdminUserSeeder;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
@@ -852,5 +854,84 @@ class SiteFlowTest extends TestCase
                 'reason' => 'subscription_inactive',
                 'subscription_status' => 'inactive',
             ]);
+    }
+
+    public function test_guests_can_submit_feedback_for_moderation(): void
+    {
+        $this->get('/roadmap')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Roadmap'));
+
+        $this->post('/roadmap', [
+            'type' => 'feature',
+            'title' => 'Add a focus timer',
+            'description' => 'Show how long the Mac has stayed awake.',
+            'submitter_name' => 'Ada',
+            'submitter_email' => 'ada@example.com',
+        ])->assertRedirect()->assertSessionHas('feedback_message');
+
+        $this->assertDatabaseHas('feedback_items', [
+            'title' => 'Add a focus timer',
+            'status' => 'submitted',
+            'is_public' => false,
+        ]);
+    }
+
+    public function test_verified_users_can_vote_for_public_roadmap_items(): void
+    {
+        $user = User::factory()->create();
+        $item = FeedbackItem::create([
+            'type' => 'feature',
+            'title' => 'Menu bar history',
+            'description' => 'Keep a short local history.',
+            'status' => 'planned',
+            'is_public' => true,
+        ]);
+
+        $this->actingAs($user)->post("/roadmap/{$item->id}/vote")->assertRedirect();
+        $this->assertDatabaseHas('feedback_votes', ['feedback_item_id' => $item->id, 'user_id' => $user->id]);
+
+        $this->actingAs($user)->post("/roadmap/{$item->id}/vote")->assertRedirect();
+        $this->assertDatabaseMissing('feedback_votes', ['feedback_item_id' => $item->id, 'user_id' => $user->id]);
+    }
+
+    public function test_unapproved_feedback_is_only_visible_to_its_owner(): void
+    {
+        $owner = User::factory()->create();
+        $otherUser = User::factory()->create();
+        $item = FeedbackItem::create([
+            'user_id' => $owner->id,
+            'type' => 'feature',
+            'title' => 'Private pending idea',
+            'description' => 'This has not been approved yet.',
+            'status' => 'submitted',
+            'is_public' => false,
+        ]);
+
+        $this->get('/roadmap')
+            ->assertInertia(fn (Assert $page) => $page->where('items', []));
+
+        $this->actingAs($otherUser)->get('/roadmap')
+            ->assertInertia(fn (Assert $page) => $page->where('items', []));
+
+        $this->actingAs($owner)->get('/roadmap')
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('items.0.id', $item->id)
+                ->where('items.0.is_public', false)
+                ->where('items.0.is_own', true)
+                ->where('items.0.status', 'submitted'));
+    }
+
+    public function test_dashboard_can_show_the_users_encrypted_activation_key(): void
+    {
+        $user = User::factory()->create();
+        $plainText = app(ApiKeyService::class)->create($user)['plain_text'];
+        $stored = DB::table('personal_access_tokens')->where('tokenable_id', $user->id)->value('display_token');
+
+        $this->assertNotSame($plainText, $stored);
+
+        $this->actingAs($user)->get('/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('apiKey.plain_text', $plainText));
     }
 }

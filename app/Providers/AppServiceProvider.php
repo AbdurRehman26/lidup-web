@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Contracts\TransactionalEmailSender;
 use App\Listeners\GrantLifetimePurchase;
 use App\Listeners\SyncPaddleSubscription;
+use App\Models\PersonalAccessToken;
 use App\Models\Subscription;
 use App\Services\Mail\LaravelTransactionalEmailSender;
 use Illuminate\Support\Facades\Event;
@@ -15,6 +16,7 @@ use Laravel\Paddle\Events\SubscriptionCreated;
 use Laravel\Paddle\Events\SubscriptionPaused;
 use Laravel\Paddle\Events\SubscriptionUpdated;
 use Laravel\Paddle\Events\TransactionCompleted;
+use Laravel\Sanctum\Sanctum;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -47,6 +49,7 @@ class AppServiceProvider extends ServiceProvider
         ]);
 
         Cashier::useSubscriptionModel(Subscription::class);
+        Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
 
         Event::listen(SubscriptionCreated::class, SyncPaddleSubscription::class);
         Event::listen(SubscriptionUpdated::class, SyncPaddleSubscription::class);

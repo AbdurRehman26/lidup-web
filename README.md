@@ -90,3 +90,15 @@ workers, and reports the release to Nightwatch when Nightwatch is installed.
 The subscription data model is ready for a payment provider, but checkout and
 webhooks are intentionally not connected yet. Add Stripe or Paddle credentials
 only when the production billing account and final plan are chosen.
+
+## CodeRabbit pre-commit review
+
+Install the repository-managed Git hook after cloning:
+
+```bash
+npm run hooks:install
+```
+
+Every commit then checks the staged diff for likely credentials and runs
+`coderabbit review --agent -t uncommitted`. The commit is blocked when the
+CodeRabbit CLI is unavailable, unauthenticated, or the review fails.

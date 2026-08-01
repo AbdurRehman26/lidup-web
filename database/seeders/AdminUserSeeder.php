@@ -66,6 +66,6 @@ class AdminUserSeeder extends Seeder
         $created = app(ApiKeyService::class)->create($user, 'Default admin activation key');
 
         $this->command?->info("Admin user {$email} has unlimited access.");
-        $this->command?->warn("Activation key (shown once): {$created['plain_text']}");
+        $this->command?->warn("Activation key (also available on the dashboard): {$created['plain_text']}");
     }
 }

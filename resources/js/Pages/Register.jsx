@@ -1,9 +1,8 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import SiteLayout from '../Layouts/SiteLayout';
 
-export default function Register({ selectedPlan, trialOffer, packages = [] }) {
+export default function Register({ selectedPlan, trialOffer }) {
     const form = useForm({ name: '', email: '', password: '', password_confirmation: '', plan: selectedPlan });
-    const earlyBirdTiers = packages.filter((pkg) => !pkg.is_paid);
 
     const submit = (event) => {
         event.preventDefault();
@@ -28,15 +27,6 @@ export default function Register({ selectedPlan, trialOffer, packages = [] }) {
                             <small>{trialOffer.duration_label} free · Verify your email, then generate a key to claim your place</small>
                         </div>
                     )}
-                    <div className="signup-tier-list" aria-label="Early-bird access tiers">
-                        {earlyBirdTiers.map((tier) => (
-                            <div className={tier.id === trialOffer?.id ? 'is-current' : ''} key={tier.id}>
-                                <span>{tier.id === trialOffer?.id ? 'Available now' : 'Next tier'}</span>
-                                <b>{tier.name}</b>
-                                <small>{tier.duration_label} free · {tier.remaining_spots ?? 'Unlimited'} spots remaining</small>
-                            </div>
-                        ))}
-                    </div>
                     <Field label="Name" type="text" value={form.data.name} onChange={(value) => form.setData('name', value)} autoComplete="name" autoFocus />
                     <Field label="Email" type="email" value={form.data.email} onChange={(value) => form.setData('email', value)} autoComplete="email" />
                     <Field label="Password" type="password" value={form.data.password} onChange={(value) => form.setData('password', value)} autoComplete="new-password" />

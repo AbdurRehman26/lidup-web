@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeviceController;
 use App\Http\Controllers\DownloadController;
 use App\Http\Controllers\EmailVerificationController;
+use App\Http\Controllers\RoadmapController;
 use App\Http\Controllers\SubscriptionController;
 use App\Services\TrialService;
 use Illuminate\Support\Facades\Route;
@@ -16,6 +17,10 @@ Route::get('/', fn (TrialService $trials) => Inertia::render('Home', [
     'packages' => $trials->publicPackages()->map(fn ($package) => $trials->present($package))->values(),
 ]))->name('home');
 Route::get('/faqs', fn () => Inertia::render('Faqs'))->name('faqs');
+Route::get('/roadmap', [RoadmapController::class, 'index'])->name('roadmap');
+Route::post('/roadmap', [RoadmapController::class, 'store'])
+    ->middleware('throttle:5,1')
+    ->name('roadmap.store');
 Route::get('/download', [DownloadController::class, 'index'])->name('download');
 Route::get('/download/latest', [DownloadController::class, 'latest'])
     ->middleware('throttle:30,1')
@@ -47,6 +52,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/api-key', [ApiKeyController::class, 'rotate'])->name('api-key.rotate');
         Route::delete('/api-key', [ApiKeyController::class, 'destroy'])->name('api-key.destroy');
         Route::delete('/devices/{activation}', [DeviceController::class, 'destroy'])->name('devices.destroy');
+        Route::post('/roadmap/{feedbackItem}/vote', [RoadmapController::class, 'vote'])->name('roadmap.vote');
     });
 
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');

@@ -17,9 +17,7 @@ const supportedAgents = [
     { name: 'GitHub Copilot', maker: 'GitHub', icon: GithubCopilotIcon, className: 'copilot' },
 ];
 
-export default function Home({ trialOffer, packages = [] }) {
-    const freePackages = packages.filter((pkg) => !pkg.is_paid);
-
+export default function Home({ trialOffer }) {
     return (
         <SiteLayout>
             <Head title="Lidup your Mac" />
@@ -99,15 +97,7 @@ export default function Home({ trialOffer, packages = [] }) {
 
             <section id="pricing" className="pricing-section">
                 <div className="price-copy"><p className="kicker">Limited early-bird offer</p><h2>Join early.<br /><em>Use LidUp free.</em></h2><p>Claim an activation key before the current tier fills. No card, no commitment.</p></div>
-                {trialOffer ? <EarlyBirdOfferCard offer={trialOffer} /> : <div className="early-bird-closed">The current early-bird allocation is full. Check back for the next tier.</div>}
-                {freePackages.some((pkg) => pkg.id !== trialOffer?.id) && (
-                    <div className="upcoming-early-tiers">
-                        <span>What comes next</span>
-                        {freePackages.filter((pkg) => pkg.id !== trialOffer?.id).map((pkg) => (
-                            <article key={pkg.id}><b>{pkg.name}</b><strong>{pkg.duration_label} free</strong><small>{pkg.user_limit ? `Up to ${pkg.user_limit} early users` : 'Unlimited places'}</small></article>
-                        ))}
-                    </div>
-                )}
+                {trialOffer ? <EarlyBirdOfferCard offer={trialOffer} /> : <div className="early-bird-closed">The early-bird allocation is currently full.</div>}
             </section>
 
             <section className="faq-invite">

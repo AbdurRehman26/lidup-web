@@ -20,6 +20,10 @@ class ApiKeyService
                 'tasks:complete',
             ]);
 
+            $created->accessToken->forceFill([
+                'display_token' => $created->plainTextToken,
+            ])->save();
+
             return ['key' => $created->accessToken, 'plain_text' => $created->plainTextToken];
         });
     }

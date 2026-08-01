@@ -21,6 +21,7 @@ class HandleInertiaRequests extends Middleware
                 'plain_api_key' => fn () => $request->session()->get('plain_api_key'),
                 'api_key_message' => fn () => $request->session()->get('api_key_message'),
                 'device_message' => fn () => $request->session()->get('device_message'),
+                'feedback_message' => fn () => $request->session()->get('feedback_message'),
             ],
         ];
     }

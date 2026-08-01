@@ -20,12 +20,16 @@ export default function SiteLayout({ children }) {
         <>
             <a className="skip-link" href="#content">Skip to content</a>
             <header className="site-header">
-                <Link href="/" aria-label="LidUp home"><Brand /></Link>
-                <nav aria-label="Main navigation">
-                    <Link href="/download">Download</Link>
-                    <Link href="/#how-it-works">How it works</Link>
-                    <Link href="/#pricing">Pricing</Link>
-                    <Link href="/faqs">FAQs</Link>
+                <div className="site-header-left">
+                    <Link href="/" aria-label="LidUp home"><Brand /></Link>
+                    <nav className="site-nav-left" aria-label="Main navigation">
+                        <Link href="/download">Download</Link>
+                        <Link href="/#how-it-works">How it works</Link>
+                        <Link href="/#pricing">Pricing</Link>
+                        <Link href="/roadmap">Roadmap</Link>
+                    </nav>
+                </div>
+                <nav className="site-nav-right" aria-label="Account navigation">
                     <button className="theme-toggle" type="button" onClick={toggleTheme} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`} aria-pressed={theme === 'dark'}>
                         <span className="theme-toggle-track" aria-hidden="true"><i className="theme-sun">☀</i><i className="theme-moon">☾</i><b /></span>
                     </button>
@@ -35,10 +39,7 @@ export default function SiteLayout({ children }) {
                             <button className="nav-button" type="button" onClick={logout}>Log out</button>
                         </>
                     ) : (
-                        <>
-                            <Link href="/login">Log in</Link>
-                            <Link className="button button-small" href="/register">Get early access</Link>
-                        </>
+                        <Link href="/login">Log in</Link>
                     )}
                 </nav>
             </header>
@@ -46,9 +47,14 @@ export default function SiteLayout({ children }) {
             <main id="content">{children}</main>
 
             <footer className="site-footer">
-                <Brand />
-                <p>Lidup your Mac.</p>
-                <div className="footer-links"><Link href="/faqs">FAQs</Link><p className="mono">© {new Date().getFullYear()} LidUp</p></div>
+                <div className="footer-brand"><Brand /><p>Lidup your Mac.</p></div>
+                <div className="footer-links" aria-label="Support links">
+                    <Link href="/roadmap?compose=review">Add a review</Link>
+                    <Link href="/roadmap?compose=feature">Request a feature</Link>
+                    <Link href="/roadmap?compose=problem">Report a problem</Link>
+                    <Link href="/faqs">FAQs</Link>
+                </div>
+                <p className="mono">© {new Date().getFullYear()} LidUp</p>
             </footer>
         </>
     );

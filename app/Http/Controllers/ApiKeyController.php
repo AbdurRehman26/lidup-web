@@ -35,7 +35,7 @@ class ApiKeyController extends Controller
         return back()
             ->with('plain_api_key', $result['key']['plain_text'])
             ->with('api_key_message', $result['trial_assigned']
-                ? 'Your activation key and early-bird access are ready. Copy the key now.'
+                ? 'Your activation key and early-bird access are ready. The key will remain available on your dashboard.'
                 : 'Your activation key was created, but no early-bird places are currently available.');
     }
 
@@ -45,7 +45,7 @@ class ApiKeyController extends Controller
 
         return back()
             ->with('plain_api_key', $created['plain_text'])
-            ->with('api_key_message', 'A new activation key was created. Your previous key and devices were revoked.');
+            ->with('api_key_message', 'A new activation key was created and will remain available here. Your previous key and devices were revoked.');
     }
 
     public function destroy(Request $request, ApiKeyService $apiKeys): RedirectResponse
