@@ -16,6 +16,7 @@ use Database\Seeders\AdminUserSeeder;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Notification;
@@ -25,6 +26,7 @@ use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Paddle\Events\TransactionCompleted;
 use Laravel\Paddle\Transaction;
+use Laravel\Telescope\Telescope;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -412,17 +414,19 @@ class SiteFlowTest extends TestCase
         $this->get('/dashboard')->assertRedirect('/login');
     }
 
-    public function test_horizon_dashboard_is_restricted_to_administrators(): void
+    public function test_telescope_dashboard_is_dark_and_restricted_to_filament_administrators(): void
     {
-        $this->get('/horizon')->assertForbidden();
+        $request = Request::create('/telescope');
+        $this->assertFalse(Telescope::check($request));
 
-        $this->actingAs(User::factory()->create())->get('/horizon')->assertForbidden();
+        $user = User::factory()->create();
+        $request->setUserResolver(fn () => $user);
+        $this->assertFalse(Telescope::check($request));
 
-        $this->actingAs(User::factory()->create(['is_admin' => true]))
-            ->get('/horizon')
-            ->assertOk()
-            ->assertSee('<scheme-toggler>', false)
-            ->assertSee('data-scheme="dark"', false);
+        $admin = User::factory()->create(['is_admin' => true]);
+        $request->setUserResolver(fn () => $admin);
+        $this->assertTrue(Telescope::check($request));
+        $this->assertTrue(Telescope::$useDarkTheme);
     }
 
     public function test_dashboard_requires_a_verified_email_address(): void

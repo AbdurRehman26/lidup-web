@@ -68,20 +68,12 @@ NIGHTWATCH_EXCEPTION_SAMPLE_RATE=1.0
 On a Linux server, run `php artisan nightwatch:agent` as a continuously managed
 background process. Restart that process after each deployment.
 
-## Queue monitoring with Horizon
+## Application debugging with Telescope
 
-Horizon is available at `/horizon` and is restricted to authenticated LidUp
-administrators outside the local environment. It requires Redis:
-
-```dotenv
-QUEUE_CONNECTION=redis
-REDIS_HOST=127.0.0.1
-```
-
-Run `php artisan horizon` under Supervisor on production. The deployment
-workflow calls `php artisan horizon:terminate` so Supervisor restarts Horizon
-with the newly deployed code. The scheduler records Horizon metrics every five
-minutes.
+Telescope is available at `/telescope`, uses its dark theme, and is restricted
+to users who can access the Filament admin panel. Its request, job, query, mail,
+notification, and exception records are stored in the application database.
+The scheduler prunes records older than 48 hours each day.
 
 ## GitHub deployment
 
@@ -105,15 +97,3 @@ workers, and reports the release to Nightwatch when Nightwatch is installed.
 The subscription data model is ready for a payment provider, but checkout and
 webhooks are intentionally not connected yet. Add Stripe or Paddle credentials
 only when the production billing account and final plan are chosen.
-
-## CodeRabbit pre-commit review
-
-Install the repository-managed Git hook after cloning:
-
-```bash
-npm run hooks:install
-```
-
-Every commit then checks the staged diff for likely credentials and runs
-`coderabbit review --agent -t uncommitted`. The commit is blocked when the
-CodeRabbit CLI is unavailable, unauthenticated, or the review fails.
