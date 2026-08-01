@@ -8,6 +8,7 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Number;
 
 class SubscriptionPackagesTable
 {
@@ -24,11 +25,24 @@ class SubscriptionPackagesTable
                     ->label('Assigned')
                     ->counts('users')
                     ->formatStateUsing(fn (int $state, SubscriptionPackage $record): string => $state.' / '.($record->user_limit ?? '∞')),
-                TextColumn::make('price')
+                TextColumn::make('is_paid')
                     ->label('Type')
                     ->badge()
                     ->state(fn (SubscriptionPackage $record): string => $record->is_paid ? 'Paid' : 'Free')
                     ->color(fn (string $state): string => $state === 'Paid' ? 'primary' : 'success'),
+                TextColumn::make('price')
+                    ->label('Price')
+                    ->state(fn (SubscriptionPackage $record): string => match (true) {
+                        ! $record->is_paid => 'Free',
+                        $record->price === null => 'Not set',
+                        default => self::formatMoney($record->price, $record->currency),
+                    })
+                    ->description(fn (SubscriptionPackage $record): ?string => $record->is_paid && $record->original_price !== null
+                        ? 'Original: '.self::formatMoney($record->original_price, $record->currency)
+                        : null)
+                    ->weight('semibold')
+                    ->color(fn (SubscriptionPackage $record): string => $record->is_paid && $record->price === null ? 'danger' : 'primary')
+                    ->sortable(),
                 TextColumn::make('billing_interval')
                     ->label('Billing')
                     ->badge()
@@ -50,5 +64,14 @@ class SubscriptionPackagesTable
             ])
             ->defaultSort('sort_order')
             ->recordActions([EditAction::make()]);
+    }
+
+    private static function formatMoney(string|int|float $amount, string $currency): string
+    {
+        return Number::currency(
+            (float) $amount,
+            in: strtoupper($currency),
+            locale: 'en',
+        );
     }
 }
