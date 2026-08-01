@@ -65,7 +65,11 @@ jobs:
             php artisan config:cache
             php artisan route:cache
             php artisan view:cache
-            php artisan queue:restart
+            if php artisan list --raw | grep -q '^horizon:terminate'; then
+              php artisan horizon:terminate
+            else
+              php artisan queue:restart
+            fi
 
             if php artisan list --raw | grep -q '^nightwatch:deploy'; then
               php artisan nightwatch:deploy "$DEPLOY_SHA" --ref="$DEPLOY_SHA" --name="GitHub deployment" --url="$DEPLOY_URL"

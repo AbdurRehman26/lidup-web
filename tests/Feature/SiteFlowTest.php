@@ -412,6 +412,19 @@ class SiteFlowTest extends TestCase
         $this->get('/dashboard')->assertRedirect('/login');
     }
 
+    public function test_horizon_dashboard_is_restricted_to_administrators(): void
+    {
+        $this->get('/horizon')->assertForbidden();
+
+        $this->actingAs(User::factory()->create())->get('/horizon')->assertForbidden();
+
+        $this->actingAs(User::factory()->create(['is_admin' => true]))
+            ->get('/horizon')
+            ->assertOk()
+            ->assertSee('<scheme-toggler>', false)
+            ->assertSee('data-scheme="dark"', false);
+    }
+
     public function test_dashboard_requires_a_verified_email_address(): void
     {
         $user = User::factory()->unverified()->create();

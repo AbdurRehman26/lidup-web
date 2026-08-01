@@ -68,6 +68,21 @@ NIGHTWATCH_EXCEPTION_SAMPLE_RATE=1.0
 On a Linux server, run `php artisan nightwatch:agent` as a continuously managed
 background process. Restart that process after each deployment.
 
+## Queue monitoring with Horizon
+
+Horizon is available at `/horizon` and is restricted to authenticated LidUp
+administrators outside the local environment. It requires Redis:
+
+```dotenv
+QUEUE_CONNECTION=redis
+REDIS_HOST=127.0.0.1
+```
+
+Run `php artisan horizon` under Supervisor on production. The deployment
+workflow calls `php artisan horizon:terminate` so Supervisor restarts Horizon
+with the newly deployed code. The scheduler records Horizon metrics every five
+minutes.
+
 ## GitHub deployment
 
 Create a GitHub environment named `production`, restrict it to the `main` branch,

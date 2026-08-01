@@ -25,3 +25,4 @@ Artisan::command('users:make-admin {email}', function (string $email) {
 })->purpose('Grant a user access to the Filament admin panel');
 
 Schedule::command('subscriptions:expire-trials')->hourly();
+Schedule::command('horizon:snapshot')->everyFiveMinutes();
