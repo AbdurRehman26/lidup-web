@@ -22,6 +22,8 @@ php artisan migrate
 composer run dev
 ```
 
+The committed dependency lock currently requires PHP 8.4.1 or newer.
+
 Open `http://localhost:8000`.
 
 ## Verify

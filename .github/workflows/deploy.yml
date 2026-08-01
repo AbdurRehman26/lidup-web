@@ -50,6 +50,8 @@ jobs:
             set -e
             cd /var/www/lidup-web
 
+            php -r 'if (version_compare(PHP_VERSION, "8.4.1", "<")) { fwrite(STDERR, "LidUp requires PHP 8.4.1 or newer; found ".PHP_VERSION.PHP_EOL); exit(1); }'
+
             php artisan down --retry=60
             trap 'php artisan up' EXIT
 

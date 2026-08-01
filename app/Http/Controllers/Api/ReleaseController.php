@@ -73,8 +73,6 @@ class ReleaseController extends Controller
             'published_at' => $release->published_at?->toIso8601String(),
             'download_url' => route('download.latest'),
             'available' => Storage::disk('local')->exists($release->file_path),
-            'sha256' => $release->sha256,
-            'file_size' => $release->file_size,
         ]);
     }
 }

@@ -510,7 +510,6 @@ class SiteFlowTest extends TestCase
             ->assertJsonPath('version', '1.2.0')
             ->assertJsonPath('minimum_os', 'macOS 14 Sonoma')
             ->assertJsonPath('available', true)
-            ->assertJsonPath('sha256', hash('sha256', 'signed-release'))
             ->assertJsonPath('download_url', route('download.latest'));
 
         $this->assertGuest();
